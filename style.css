@@ -1,12 +1,11 @@
 :root {
-  --bg-main: #f0f4f8;
+  --bg-main: #fff5f7;
   --panel-bg: #ffffff;
-  --panel-border: #e2e8f0;
-  --accent-pastel: #b8c0ff;
-  --accent-purple: #c8b6ff;
-  --accent-pink: #ffd6ff;
-  --text-main: #2d3748;
-  --text-muted: #718096;
+  --panel-border: #fbcfe8;
+  --accent-pink: #f472b6;
+  --accent-purple: #c084fc;
+  --text-main: #4a4063;
+  --text-muted: #9d8ba7;
 }
 
 * {
@@ -26,25 +25,27 @@ body {
 }
 
 header {
-  background: var(--panel-bg);
-  border-bottom: 1px solid var(--panel-border);
+  background: #ffffff;
+  border-bottom: 2px solid #fecdd3;
   padding: 14px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 15px rgba(244, 114, 182, 0.08);
 }
 
 .logo-title h1 {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 800;
-  color: #6c5ce7;
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
 }
 
 .btn {
   padding: 10px 22px;
-  border-radius: 8px;
+  border-radius: 20px;
   border: none;
   font-weight: 700;
   font-size: 0.875rem;
@@ -56,9 +57,9 @@ header {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #a855f7, #6366f1);
+  background: linear-gradient(135deg, #f472b6, #c084fc);
   color: white;
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25);
+  box-shadow: 0 4px 14px rgba(244, 114, 182, 0.35);
 }
 
 .btn-primary:hover {
@@ -74,8 +75,8 @@ main {
 
 sidebar {
   width: 360px;
-  background: var(--panel-bg);
-  border-right: 1px solid var(--panel-border);
+  background: #fff0f5;
+  border-right: 2px solid #fbcfe8;
   padding: 22px;
   overflow-y: auto;
   display: flex;
@@ -87,10 +88,11 @@ sidebar {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #f8fafc;
+  background: #ffffff;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  border: 1px solid #fbcfe8;
+  box-shadow: 0 2px 8px rgba(244, 114, 182, 0.04);
 }
 
 .control-group label {
@@ -106,16 +108,17 @@ sidebar {
 input[type="text"], select {
   width: 100%;
   padding: 10px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  background: #fff5f8;
+  border: 1px solid #fbcfe8;
+  border-radius: 10px;
   color: var(--text-main);
   font-size: 1rem;
+  font-weight: 600;
   outline: none;
 }
 
 input[type="text"]:focus, select:focus {
-  border-color: #8b5cf6;
+  border-color: #f472b6;
 }
 
 .slider-container {
@@ -126,12 +129,12 @@ input[type="text"]:focus, select:focus {
 
 input[type="range"] {
   flex: 1;
-  accent-color: #8b5cf6;
+  accent-color: #f472b6;
 }
 
 .val-badge {
   font-size: 0.8rem;
-  color: #7c3aed;
+  color: #db2777;
   font-weight: bold;
   min-width: 45px;
   text-align: right;
@@ -140,7 +143,7 @@ input[type="range"] {
 #viewport-container {
   flex: 1;
   position: relative;
-  background: #f1f5f9;
+  background: #fff9fb;
 }
 
 #canvas3d {
@@ -153,20 +156,20 @@ input[type="range"] {
   position: absolute;
   bottom: 20px;
   right: 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   color: var(--text-main);
   padding: 12px 18px;
-  border-radius: 10px;
-  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  border: 1px solid #fbcfe8;
   font-size: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 15px rgba(244, 114, 182, 0.1);
 }
 
 .info-overlay span {
-  color: #7c3aed;
+  color: #db2777;
   font-weight: bold;
 }
