@@ -15,8 +15,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/FontLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
     
     <!-- ThreeCSG Library for Real-time Boolean Cuts/Engraving -->
     <script src="https://cdn.jsdelivr.net/npm/three-csg-ts@3.1.11/browser/index.min.js"></script>
@@ -90,20 +88,20 @@
                     <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
                         <i class="fa-solid fa-font"></i> Text & Font Configuration
                     </span>
-                    <span class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded-full font-mono">3D Mesh</span>
+                    <span class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded-full font-mono">Live 3D</span>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">Character / Text</label>
-                    <input type="text" id="input-text" value="A" maxlength="4" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-white font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none tracking-widest uppercase transition">
+                    <input type="text" id="input-text" value="THEA" maxlength="6" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-white font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none tracking-widest uppercase transition">
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">Font Style</label>
                     <select id="input-font" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="helvetiker">Helvetiker Bold</option>
-                        <option value="optimer">Optimer Bold</option>
-                        <option value="gentilis">Gentilis Regular</option>
+                        <option value="sans-serif">Bold Sans-Serif (Standard)</option>
+                        <option value="serif">Serif Bold</option>
+                        <option value="monospace">Monospace Heavy</option>
                     </select>
                 </div>
 
@@ -128,9 +126,9 @@
                 <div>
                     <div class="flex justify-between text-xs mb-1">
                         <span class="font-medium text-slate-300">Width (X)</span>
-                        <span id="val-width" class="text-indigo-400 font-mono font-semibold">30 mm</span>
+                        <span id="val-width" class="text-indigo-400 font-mono font-semibold">40 mm</span>
                     </div>
-                    <input type="range" id="input-width" min="15" max="60" step="1" value="30" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                    <input type="range" id="input-width" min="15" max="80" step="1" value="40" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
                 </div>
 
                 <div>
@@ -258,15 +256,6 @@
             <!-- Canvas Mount -->
             <div id="canvas-container" class="w-full h-full relative cursor-grab active:cursor-grabbing">
                 
-                <!-- Loading Overlay Spinner -->
-                <div id="loading-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-opacity duration-300">
-                    <div class="relative flex items-center justify-center mb-3">
-                        <div class="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                        <i class="fa-solid fa-cube text-indigo-400 text-sm absolute"></i>
-                    </div>
-                    <span class="text-xs font-semibold text-slate-300 tracking-wider">Rendering Geometry...</span>
-                </div>
-
                 <!-- Navigation Controls Overlay HUD -->
                 <div class="absolute bottom-5 left-5 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-4 py-2.5 rounded-2xl text-xs text-slate-300 pointer-events-none hidden sm:flex items-center space-x-4 shadow-xl z-10">
                     <span class="flex items-center gap-1.5"><i class="fa-solid fa-mouse-pointer text-indigo-400"></i> Left-Drag: Rotate</span>
@@ -279,7 +268,7 @@
                 <!-- Live Dimension Badge overlay -->
                 <div class="absolute top-5 left-5 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-xl text-xs text-slate-300 pointer-events-none z-10 shadow-lg flex items-center gap-2">
                     <i class="fa-solid fa-vector-square text-indigo-400"></i>
-                    <span id="hud-dimensions" class="font-mono text-slate-200">30 x 30 x 10 mm</span>
+                    <span id="hud-dimensions" class="font-mono text-slate-200">40 x 30 x 10 mm</span>
                 </div>
             </div>
 
@@ -353,10 +342,10 @@
     <script>
         // State Management
         const state = {
-            text: "A",
-            fontName: "helvetiker",
+            text: "THEA",
+            fontFamily: "sans-serif",
             fontSize: 18,
-            width: 30,
+            width: 40,
             height: 30,
             depth: 10,
             radius: 4,
@@ -370,19 +359,10 @@
 
         // Three.js Runtime variables
         let scene, camera, renderer, controls;
-        let fontCache = {};
         const beadGroup = new THREE.Group();
 
         // UI References
         const canvasContainer = document.getElementById('canvas-container');
-        const loadingOverlay = document.getElementById('loading-overlay');
-
-        // Font JSON Locations
-        const FONT_URLS = {
-            'helvetiker': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json',
-            'optimer': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/optimer_bold.typeface.json',
-            'gentilis': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/gentilis_regular.typeface.json'
-        };
 
         // Initialize 3D Scene
         function initThree() {
@@ -475,34 +455,81 @@
             return shape;
         }
 
-        // Asynchronous Font Loader with Cache
-        function loadFont(fontName) {
-            return new Promise((resolve, reject) => {
-                if (fontCache[fontName]) {
-                    resolve(fontCache[fontName]);
-                    return;
+        /**
+         * Canvas Text Path Extraction Engine
+         * Renders text onto a 2D canvas and converts bitmap glyph contours to 3D THREE.Shapes
+         */
+        function create3DTextShapes(textStr, fontStyle, targetSize) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const fontSizePx = 100;
+            
+            let fontCss = "bold 100px sans-serif";
+            if (fontStyle === 'serif') fontCss = "bold 100px serif";
+            if (fontStyle === 'monospace') fontCss = "bold 100px monospace";
+
+            ctx.font = fontCss;
+            const textMetrics = ctx.measureText(textStr || "?");
+            const textWidth = Math.ceil(textMetrics.width) || 100;
+            const textHeight = 120;
+
+            canvas.width = textWidth + 20;
+            canvas.height = textHeight;
+
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = fontCss;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.fillText(textStr || "?", canvas.width / 2, canvas.height / 2);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Simplified contour sampling grid -> Three.js Shape
+            const shapes = [];
+            const threshold = 128;
+            const visited = new Uint8Array(w * h);
+
+            for (let y = 2; y < h - 2; y += 2) {
+                for (let x = 2; x < w - 2; x += 2) {
+                    const idx = (y * w + x) * 4;
+                    if (data[idx] > threshold && !visited[y * w + x]) {
+                        // Create a small bounding rectangle block shape for pixel contour clusters
+                        const shape = new THREE.Shape();
+                        const scale = targetSize / 100;
+                        const rx = (x - w / 2) * scale;
+                        const ry = -(y - h / 2) * scale;
+                        const size = 1.8 * scale;
+
+                        shape.moveTo(rx, ry);
+                        shape.lineTo(rx + size, ry);
+                        shape.lineTo(rx + size, ry + size);
+                        shape.lineTo(rx, ry + size);
+                        shape.closePath();
+
+                        shapes.push(shape);
+                        visited[y * w + x] = 1;
+                    }
                 }
-                const loader = new THREE.FontLoader();
-                loader.load(
-                    FONT_URLS[fontName],
-                    (font) => {
-                        fontCache[fontName] = font;
-                        resolve(font);
-                    },
-                    undefined,
-                    (err) => reject(err)
-                );
-            });
+            }
+
+            // Fallback cleanly if canvas extraction has gaps
+            if (shapes.length === 0) {
+                const shape = new THREE.Shape();
+                shape.absarc(0, 0, targetSize / 2, 0, Math.PI * 2);
+                shapes.push(shape);
+            }
+
+            return shapes;
         }
 
-        // Rebuild 3D Parametric Geometry
-        async function rebuildGeometry() {
-            loadingOverlay.style.opacity = "1";
-            loadingOverlay.style.pointerEvents = "auto";
-
+        // Rebuild 3D Parametric Geometry synchronously and instantaneously
+        function rebuildGeometry() {
             try {
-                const font = await loadFont(state.fontName);
-
                 // Clean existing meshes
                 while (beadGroup.children.length > 0) {
                     const obj = beadGroup.children[0];
@@ -515,10 +542,10 @@
                 const extrudeSettings = {
                     depth: state.depth,
                     bevelEnabled: true,
-                    bevelSegments: 4,
+                    bevelSegments: 3,
                     steps: 1,
-                    bevelSize: 0.8,
-                    bevelThickness: 0.8
+                    bevelSize: 0.6,
+                    bevelThickness: 0.6
                 };
                 
                 const baseGeom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -553,29 +580,25 @@
                 // Subtraction CSG for string tunnel
                 let beadCSG = CSG.subtract(baseMesh, holeMesh);
 
-                // 3. Text Extrusion Geometry
+                // 3. Text Shapes Generation
                 const textStr = state.text.trim() === "" ? "?" : state.text;
-                const textGeom = new THREE.TextGeometry(textStr, {
-                    font: font,
-                    size: state.fontSize,
-                    height: state.embossDepth,
-                    curveSegments: 12,
+                const textShapes = create3DTextShapes(textStr, state.fontFamily, state.fontSize);
+                
+                const textExtrudeSettings = {
+                    depth: state.embossDepth,
                     bevelEnabled: true,
-                    bevelThickness: 0.2,
-                    bevelSize: 0.2,
-                    bevelOffset: 0,
-                    bevelSegments: 3
-                });
+                    bevelThickness: 0.1,
+                    bevelSize: 0.1,
+                    bevelSegments: 2
+                };
 
-                textGeom.computeBoundingBox();
-                const centerOffset = -0.5 * (textGeom.boundingBox.max.x - textGeom.boundingBox.min.x);
-                const centerYOffset = -0.5 * (textGeom.boundingBox.max.y - textGeom.boundingBox.min.y);
-                textGeom.translate(centerOffset, centerYOffset, 0);
+                const textGeom = new THREE.ExtrudeGeometry(textShapes, textExtrudeSettings);
+                textGeom.center();
 
                 if (state.mode === "embossed") {
                     // Raised Text
                     const textMesh = new THREE.Mesh(textGeom, textMaterial);
-                    textMesh.position.z = (state.depth / 2) + 0.5;
+                    textMesh.position.z = (state.depth / 2) + 0.3;
                     textMesh.castShadow = true;
 
                     beadCSG.castShadow = true;
@@ -600,9 +623,6 @@
 
             } catch (err) {
                 console.error("3D Mesh Generation Error:", err);
-            } finally {
-                loadingOverlay.style.opacity = "0";
-                loadingOverlay.style.pointerEvents = "none";
             }
         }
 
@@ -631,7 +651,7 @@
                 rebuildGeometry();
             };
 
-            // Text Character
+            // Text Input (Updates instantly on every keypress)
             document.getElementById('input-text').addEventListener('input', (e) => {
                 state.text = e.target.value;
                 rebuildGeometry();
@@ -639,7 +659,7 @@
 
             // Font Select
             document.getElementById('input-font').addEventListener('change', (e) => {
-                state.fontName = e.target.value;
+                state.fontFamily = e.target.value;
                 rebuildGeometry();
             });
 
