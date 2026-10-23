@@ -24,30 +24,39 @@ scene.add(dirLight);
 
 let beadGroup = null;
 let loadedFont = null;
+let manifoldModule = null;
 
-// Indlæs font
-const loader = new THREE.FontLoader();
-loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
-  loadedFont = font;
+// Hent font og Manifold C++ Wasm-motoren
+Promise.all([
+  new Promise((resolve) => {
+    new THREE.FontLoader().load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+      loadedFont = font;
+      resolve();
+    });
+  }),
+  Module().then((mod) => {
+    mod.setup();
+    manifoldModule = mod;
+    resolve();
+  })
+]).then(() => {
   document.getElementById('statusInfo').innerText = "Klar";
   generateLetterBeads();
 });
 
 function generateLetterBeads() {
-  if (!loadedFont) return;
+  if (!loadedFont || !manifoldModule) return;
 
   const rawText = document.getElementById('textInput').value.trim() || 'NAVN';
   const letters = rawText.toUpperCase().split('');
   const size = parseFloat(document.getElementById('sizeSlider').value);
   const depth = parseFloat(document.getElementById('depthSlider').value);
-  const bevel = parseFloat(document.getElementById('bevelSlider').value);
   const holeDiam = parseFloat(document.getElementById('holeSlider').value);
   const holePosY = parseFloat(document.getElementById('holePosYSlider').value);
   const colorHex = parseInt(document.getElementById('colorSelect').value);
 
   document.getElementById('sizeVal').innerText = size + ' mm';
   document.getElementById('depthVal').innerText = depth + ' mm';
-  document.getElementById('bevelVal').innerText = bevel + ' mm';
   document.getElementById('holeVal').innerText = holeDiam + ' mm';
   document.getElementById('holePosYVal').innerText = holePosY + ' mm';
   document.getElementById('letterCountInfo').innerText = letters.length;
@@ -67,45 +76,47 @@ function generateLetterBeads() {
   letters.forEach((char) => {
     const charGroup = new THREE.Group();
 
-    // 1. Opret intakt 2D-kontur med et integreret snørehul i 2D før 3D-ekstrudering
+    // 1. Generer 3D Bogstav Geometri uden bevels (for 100% ren matematisk CSG)
     const shapes = loadedFont.generateShapes(char, size);
+    const extrudeSettings = { depth: depth, curveSegments: 16, bevelEnabled: false };
+    const textGeo = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
 
-    shapes.forEach((shape) => {
-      if (holeDiam > 0) {
-        const holePath = new THREE.Path();
-        const holeRadius = holeDiam / 2;
+    textGeo.computeBoundingBox();
+    const bbox = textGeo.boundingBox;
+    const charWidth = bbox.max.x - bbox.min.x;
+    const charHeight = bbox.max.y - bbox.min.y;
 
-        // Opretter en cirkulær udskæring i bogstavets 2D-flade
-        const centerX = size * 0.3;
-        const centerY = size * 0.35 + holePosY;
+    textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
 
-        holePath.absarc(centerX, centerY, holeRadius, 0, Math.PI * 2, true);
-        shape.holes.push(holePath);
+    let finalMesh;
+
+    if (holeDiam > 0) {
+      try {
+        // 2. Generer vandret cylinder
+        const holeLength = charWidth + 20;
+        const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
+        holeGeo.rotateZ(Math.PI / 2);
+        holeGeo.translate(0, holePosY, 0);
+
+        // 3. Konverter begge geometrier til Manifold3D C++ Objekter
+        const manifoldText = manifoldModule.Manifold.ofBufferGeometry(textGeo);
+        const manifoldHole = manifoldModule.Manifold.ofBufferGeometry(holeGeo);
+
+        // 4. Udfør ægte C++ Difference (udskæring af hullet)
+        const resultManifold = manifoldModule.Manifold.difference(manifoldText, manifoldHole);
+
+        // 5. Konverter tilbage til ren Three.js Mesh
+        const resultGeo = resultManifold.getBufferGeometry();
+        finalMesh = new THREE.Mesh(resultGeo, mat);
+      } catch (e) {
+        console.warn("Manifold3D udskæring fejlede, viser standard:", e);
+        finalMesh = new THREE.Mesh(textGeo, mat);
       }
+    } else {
+      finalMesh = new THREE.Mesh(textGeo, mat);
+    }
 
-      // 2. Ekstruder bogstavet i et enkelt samlet stykke
-      const extrudeSettings = {
-        depth: depth,
-        curveSegments: 16,
-        bevelEnabled: bevel > 0,
-        bevelThickness: bevel,
-        bevelSize: bevel * 0.8,
-        bevelSegments: 4
-      };
-
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      geo.computeBoundingBox();
-      const bbox = geo.boundingBox;
-      const charWidth = bbox.max.x - bbox.min.x;
-      const charHeight = bbox.max.y - bbox.min.y;
-
-      // Centrer geometrien
-      geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-
-      const mesh = new THREE.Mesh(geo, mat);
-      charGroup.add(mesh);
-    });
-
+    charGroup.add(finalMesh);
     charGroup.position.x = currentX;
     currentX += spacing;
     beadGroup.add(charGroup);
@@ -118,7 +129,7 @@ function generateLetterBeads() {
 }
 
 // Event Listeners
-const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'bevelSlider', 'holeSlider', 'holePosYSlider', 'colorSelect'];
+const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'holePosYSlider', 'colorSelect'];
 inputs.forEach(id => {
   document.getElementById(id).addEventListener('input', generateLetterBeads);
 });
