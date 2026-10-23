@@ -3,10 +3,11 @@ const container = document.getElementById('viewport-container');
 const canvas = document.getElementById('canvas3d');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xfff9fb);
+// Mørkere pastelblå baggrund så designet står helt skarpt
+scene.background = new THREE.Color(0xa0c4ff);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.set(0, -45, 80);
+camera.position.set(0, -45, 85);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -62,15 +63,21 @@ function generateLetterBeads() {
     side: THREE.DoubleSide
   });
 
+  // Mørkere nuance til den indvendige hule tunnel for høj kontrast i 3D
+  const innerTunnelMat = new THREE.MeshStandardMaterial({
+    color: 0x475569,
+    roughness: 0.6,
+    side: THREE.BackSide
+  });
+
   let currentX = 0;
   const spacing = size * 1.25;
 
   letters.forEach((char) => {
-    // Generer 2D kontur-shapes fra fonten
+    const charGroup = new THREE.Group();
     const shapes = loadedFont.generateShapes(char, size);
 
     shapes.forEach((shape) => {
-      // Opret 3D bogstav
       const extrudeSettings = {
         depth: depth,
         curveSegments: 12,
@@ -80,35 +87,56 @@ function generateLetterBeads() {
         bevelSegments: 4
       };
 
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      geo.computeBoundingBox();
-      const bbox = geo.boundingBox;
+      const fullGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      fullGeo.computeBoundingBox();
+      const bbox = fullGeo.boundingBox;
       const charWidth = bbox.max.x - bbox.min.x;
       const charHeight = bbox.max.y - bbox.min.y;
 
-      // Centrer geometrien
-      geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+      const halfHole = holeDiam / 2;
+      const holeYCenter = holePosY;
 
-      // Drej geometrien så ekstruderingen sker vandret og danner krop
-      const mesh = new THREE.Mesh(geo, mat);
-
-      // Tilføj hul ved at oprette en udskåret cylinder direkte i mesh
-      if (holeDiam > 0) {
-        const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, charWidth + 10, 32);
-        holeGeo.rotateZ(Math.PI / 2);
-        holeGeo.translate(0, holePosY, 0);
-
-        // Visualiser hullet som gennemsigtigt/tomrum
-        const holeMat = new THREE.MeshBasicMaterial({ color: 0xfff9fb });
-        const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-        mesh.add(holeMesh);
+      // 1. TOP-DEL AF BOGSTAVET (Klippes ved toppen af hullet)
+      const topGeo = fullGeo.clone();
+      topGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+      const topPos = topGeo.attributes.position;
+      for (let i = 0; i < topPos.count; i++) {
+        if (topPos.getY(i) < holeYCenter + halfHole) {
+          topPos.setY(i, holeYCenter + halfHole);
+        }
       }
+      topGeo.computeVertexNormals();
+      const topMesh = new THREE.Mesh(topGeo, mat);
+      charGroup.add(topMesh);
 
-      mesh.position.x = currentX;
-      beadGroup.add(mesh);
+      // 2. BUND-DEL AF BOGSTAVET (Klippes ved bunden af hullet)
+      const botGeo = fullGeo.clone();
+      botGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+      const botPos = botGeo.attributes.position;
+      for (let i = 0; i < botPos.count; i++) {
+        if (botPos.getY(i) > holeYCenter - halfHole) {
+          botPos.setY(i, holeYCenter - halfHole);
+        }
+      }
+      botGeo.computeVertexNormals();
+      const botMesh = new THREE.Mesh(botGeo, mat);
+      charGroup.add(botMesh);
+
+      // 3. INDVENDIG CYLINDRISK TUNNEL (Udgør væggen i snørehullet)
+      if (holeDiam > 0) {
+        const tunnelLength = charWidth + 2;
+        const tunnelGeo = new THREE.CylinderGeometry(halfHole, halfHole, tunnelLength, 32, 1, true);
+        tunnelGeo.rotateZ(Math.PI / 2);
+        tunnelGeo.translate(0, holeYCenter, 0);
+
+        const tunnelMesh = new THREE.Mesh(tunnelGeo, innerTunnelMat);
+        charGroup.add(tunnelMesh);
+      }
     });
 
+    charGroup.position.x = currentX;
     currentX += spacing;
+    beadGroup.add(charGroup);
   });
 
   const totalWidth = (letters.length - 1) * spacing;
@@ -138,7 +166,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
   const blob = new Blob([result], { type: 'application/octet-stream' });
   const link = document.createElement('a');
-  const filename = (document.getElementById('textInput').value.trim() || 'beads') + '_3d.stl';
+  const filename = (document.getElementById('textInput').value.trim() || 'NAVN') + '_3d.stl';
 
   link.href = URL.createObjectURL(blob);
   link.download = filename;
