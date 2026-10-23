@@ -1,4 +1,4 @@
-// Initialization af Scene & Camera
+// --- INITIALISATION AF SCENE & KAMERA ---
 const container = document.getElementById('viewport-container');
 const canvas = document.getElementById('canvas3d');
 
@@ -24,30 +24,19 @@ scene.add(dirLight);
 
 let beadGroup = null;
 let loadedFont = null;
-let manifoldModule = null;
 
-// Hent Font og Initialize Manifold Wasm
-Promise.all([
-  new Promise((resolve) => {
-    new THREE.FontLoader().load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
-      loadedFont = font;
-      resolve();
-    });
-  }),
-  Module().then((mod) => {
-    mod.setup();
-    manifoldModule = mod;
-    resolve();
-  })
-]).then(() => {
+// Indlæs standard font
+const loader = new THREE.FontLoader();
+loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+  loadedFont = font;
   document.getElementById('statusInfo').innerText = "Klar";
   generateLetterBeads();
 });
 
 function generateLetterBeads() {
-  if (!loadedFont || !manifoldModule) return;
+  if (!loadedFont) return;
 
-  const rawText = document.getElementById('textInput').value.trim() || 'T';
+  const rawText = document.getElementById('textInput').value.trim() || 'NAVN';
   const letters = rawText.toUpperCase().split('');
   const size = parseFloat(document.getElementById('sizeSlider').value);
   const depth = parseFloat(document.getElementById('depthSlider').value);
@@ -56,6 +45,7 @@ function generateLetterBeads() {
   const holePosY = parseFloat(document.getElementById('holePosYSlider').value);
   const colorHex = parseInt(document.getElementById('colorSelect').value);
 
+  // Opdater UI-værdier
   document.getElementById('sizeVal').innerText = size + ' mm';
   document.getElementById('depthVal').innerText = depth + ' mm';
   document.getElementById('bevelVal').innerText = bevel + ' mm';
@@ -72,20 +62,26 @@ function generateLetterBeads() {
     metalness: 0.1
   });
 
+  const holeMat = new THREE.MeshBasicMaterial({
+    color: 0x111827
+  });
+
   let currentX = 0;
   const spacing = size * 1.25;
 
   letters.forEach((char) => {
+    const charGroup = new THREE.Group();
+
     // 1. Opret Grundgeometri for Bogstavet
     const textGeo = new THREE.TextGeometry(char, {
       font: loadedFont,
       size: size,
       height: depth,
-      curveSegments: 8,
+      curveSegments: 10,
       bevelEnabled: bevel > 0,
       bevelThickness: bevel,
       bevelSize: bevel * 0.8,
-      bevelSegments: 3
+      bevelSegments: 4
     });
 
     textGeo.computeBoundingBox();
@@ -94,41 +90,23 @@ function generateLetterBeads() {
     const charHeight = bbox.max.y - bbox.min.y;
 
     textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-    
-    // Konverter til BufferGeometry hvis nødvendigt
-    const bufferGeo = textGeo.isBufferGeometry ? textGeo : new THREE.BufferGeometry().fromGeometry(textGeo);
+    const letterMesh = new THREE.Mesh(textGeo, mat);
+    charGroup.add(letterMesh);
 
-    let finalMesh;
-
+    // 2. Opret Snørehul
     if (holeDiam > 0) {
-      try {
-        // Opbyg cylinder til udskæring
-        const holeLength = charWidth + 20;
-        const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 24);
-        holeGeo.rotateZ(Math.PI / 2);
-        holeGeo.translate(0, holePosY, 0);
+      const holeLength = charWidth + 10;
+      const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
+      holeGeo.rotateZ(Math.PI / 2);
 
-        // Konverter til Manifold Objekter
-        const manifoldText = manifoldModule.Manifold.ofBufferGeometry(bufferGeo);
-        const manifoldHole = manifoldModule.Manifold.ofBufferGeometry(holeGeo);
-
-        // Eksekver 100% vandtæt subtration
-        const resultManifold = manifoldModule.Manifold.difference(manifoldText, manifoldHole);
-
-        // Konverter tilbage til Three.js Mesh
-        const resultGeo = resultManifold.getBufferGeometry();
-        finalMesh = new THREE.Mesh(resultGeo, mat);
-      } catch (e) {
-        console.warn("Manifold CSG fejlede, viser standard mesh:", e);
-        finalMesh = new THREE.Mesh(bufferGeo, mat);
-      }
-    } else {
-      finalMesh = new THREE.Mesh(bufferGeo, mat);
+      const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+      holeMesh.position.set(0, holePosY, 0);
+      charGroup.add(holeMesh);
     }
 
-    finalMesh.position.x = currentX;
+    charGroup.position.x = currentX;
     currentX += spacing;
-    beadGroup.add(finalMesh);
+    beadGroup.add(charGroup);
   });
 
   const totalWidth = (letters.length - 1) * spacing;
@@ -158,7 +136,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
   const blob = new Blob([result], { type: 'application/octet-stream' });
   const link = document.createElement('a');
-  const filename = (document.getElementById('textInput').value.trim() || 'beads') + '_3d.stl';
+  const filename = (document.getElementById('textInput').value.trim() || 'NAVN') + '_3d.stl';
 
   link.href = URL.createObjectURL(blob);
   link.download = filename;
