@@ -181,14 +181,12 @@
     }
   </style>
 
-  <!-- Three.js, CSG & Exporters -->
+  <!-- Three.js & Exporters -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
-  <!-- ThreeCSG Library til Booleansk Udfasning/Udskæring -->
-  <script src="https://cdn.jsdelivr.net/gh/manthrax/THREE-CSG-Utils@master/ThreeCSG.js"></script>
 </head>
 <body>
 
@@ -226,14 +224,6 @@
         <div class="slider-container">
           <input type="range" id="holeSlider" min="1" max="8" step="0.5" value="3.5">
         </div>
-      </div>
-
-      <div class="control-group">
-        <label for="holeOrient">Snørehul Retning</label>
-        <select id="holeOrient">
-          <option value="X">X-Akse (Vandret igennem)</option>
-          <option value="Y">Y-Akse (Lodret igennem)</option>
-        </select>
       </div>
 
       <div class="control-group">
@@ -298,7 +288,6 @@
       const size = parseFloat(document.getElementById('sizeSlider').value);
       const depth = parseFloat(document.getElementById('depthSlider').value);
       const holeDiam = parseFloat(document.getElementById('holeSlider').value);
-      const holeOrient = document.getElementById('holeOrient').value;
       const colorHex = parseInt(document.getElementById('colorSelect').value);
 
       document.getElementById('sizeVal').innerText = size + ' mm';
@@ -313,64 +302,54 @@
       const mat = new THREE.MeshStandardMaterial({
         color: colorHex,
         roughness: 0.3,
-        metalness: 0.1
+        metalness: 0.1,
+        side: THREE.DoubleSide
       });
 
       let currentX = 0;
       const spacing = size * 1.1;
 
       letters.forEach((char) => {
-        // 1. Opret Grundgeometri for Bogstavet
-        const textGeo = new THREE.TextGeometry(char, {
-          font: loadedFont,
-          size: size,
-          height: depth,
-          curveSegments: 12,
-          bevelEnabled: true,
-          bevelThickness: 1.0,
-          bevelSize: 0.8,
-          bevelSegments: 4
+        // Hent 2D konturer for bogstavet fra fonten
+        const shapes = loadedFont.generateShapes(char, size);
+
+        // Bunden for hver figur
+        shapes.forEach((shape) => {
+          // Tilføj hul direkte i 2D konturen midt på bogstavet
+          if (holeDiam > 0) {
+            const holePath = new THREE.Path();
+            const radius = holeDiam / 2;
+            
+            // Placer hullet midt i bogstavet (vandret gennem Z-aksen eller Y/X)
+            // Vi tegner en cirkulær udskæring i 2D før ekstrudering
+            holePath.absarc(size * 0.3, size * 0.4, radius, 0, Math.PI * 2, true);
+            shape.holes.push(holePath);
+          }
+
+          // Ekstruder geometrien direkte med hullet integreret
+          const extrudeSettings = {
+            depth: depth,
+            bevelEnabled: true,
+            bevelThickness: 1.0,
+            bevelSize: 0.8,
+            bevelSegments: 4
+          };
+
+          const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+          geo.computeBoundingBox();
+          const bbox = geo.boundingBox;
+          const charWidth = bbox.max.x - bbox.min.x;
+          const charHeight = bbox.max.y - bbox.min.y;
+
+          // Centrer geometrien
+          geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.x = currentX;
+          beadGroup.add(mesh);
         });
 
-        textGeo.computeBoundingBox();
-        const bbox = textGeo.boundingBox;
-        const charWidth = bbox.max.x - bbox.min.x;
-        const charHeight = bbox.max.y - bbox.min.y;
-
-        // Centrer bogstavet ved 0,0,0
-        textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-        const textMesh = new THREE.Mesh(textGeo, mat);
-
-        let finalMesh = textMesh;
-
-        // 2. Booleansk Udskæring (CSG Subtraction) for Snørehul
-        if (holeDiam > 0) {
-          const holeLen = Math.max(charWidth, charHeight, size) + 20;
-          const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLen, 32);
-          const holeMesh = new THREE.Mesh(holeGeo);
-
-          if (holeOrient === 'X') {
-            holeMesh.rotation.z = Math.PI / 2;
-          } else {
-            holeMesh.rotation.x = Math.PI / 2;
-          }
-
-          // Træk cylinderen fra bogstavet
-          try {
-            const textCSG = THREE.CSG.fromMesh(textMesh);
-            const holeCSG = THREE.CSG.fromMesh(holeMesh);
-            const subtractedCSG = textCSG.subtract(holeCSG);
-            
-            finalMesh = THREE.CSG.toMesh(subtractedCSG, new THREE.Matrix4(), mat);
-          } catch (e) {
-            console.warn('CSG udtrapning fejlede for ' + char, e);
-          }
-        }
-
-        finalMesh.position.x = currentX;
         currentX += spacing;
-
-        beadGroup.add(finalMesh);
       });
 
       // Centrer samlet række af bogstaver
@@ -381,7 +360,7 @@
     }
 
     // Event Listeners
-    const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'holeOrient', 'colorSelect'];
+    const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'colorSelect'];
     inputs.forEach(id => {
       document.getElementById(id).addEventListener('input', generateLetterBeads);
     });
