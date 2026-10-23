@@ -6,7 +6,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xfff9fb);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.set(0, -50, 85);
+camera.position.set(0, -45, 80);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -18,7 +18,7 @@ controls.enableDamping = true;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
 dirLight.position.set(30, -30, 60);
 scene.add(dirLight);
 
@@ -58,61 +58,57 @@ function generateLetterBeads() {
   const mat = new THREE.MeshStandardMaterial({
     color: colorHex,
     roughness: 0.35,
-    metalness: 0.05
+    metalness: 0.05,
+    side: THREE.DoubleSide
   });
 
   let currentX = 0;
   const spacing = size * 1.25;
 
   letters.forEach((char) => {
-    // 1. Opret Grundgeometri for Bogstavet
-    const textGeo = new THREE.TextGeometry(char, {
-      font: loadedFont,
-      size: size,
-      height: depth,
-      curveSegments: 8,
-      bevelEnabled: bevel > 0,
-      bevelThickness: bevel,
-      bevelSize: bevel * 0.8,
-      bevelSegments: 3
+    // Generer 2D kontur-shapes fra fonten
+    const shapes = loadedFont.generateShapes(char, size);
+
+    shapes.forEach((shape) => {
+      // Opret 3D bogstav
+      const extrudeSettings = {
+        depth: depth,
+        curveSegments: 12,
+        bevelEnabled: bevel > 0,
+        bevelThickness: bevel,
+        bevelSize: bevel * 0.8,
+        bevelSegments: 4
+      };
+
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      geo.computeBoundingBox();
+      const bbox = geo.boundingBox;
+      const charWidth = bbox.max.x - bbox.min.x;
+      const charHeight = bbox.max.y - bbox.min.y;
+
+      // Centrer geometrien
+      geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+
+      // Drej geometrien så ekstruderingen sker vandret og danner krop
+      const mesh = new THREE.Mesh(geo, mat);
+
+      // Tilføj hul ved at oprette en udskåret cylinder direkte i mesh
+      if (holeDiam > 0) {
+        const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, charWidth + 10, 32);
+        holeGeo.rotateZ(Math.PI / 2);
+        holeGeo.translate(0, holePosY, 0);
+
+        // Visualiser hullet som gennemsigtigt/tomrum
+        const holeMat = new THREE.MeshBasicMaterial({ color: 0xfff9fb });
+        const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+        mesh.add(holeMesh);
+      }
+
+      mesh.position.x = currentX;
+      beadGroup.add(mesh);
     });
 
-    textGeo.computeBoundingBox();
-    const bbox = textGeo.boundingBox;
-    const charWidth = bbox.max.x - bbox.min.x;
-    const charHeight = bbox.max.y - bbox.min.y;
-
-    textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-    const letterMesh = new THREE.Mesh(textGeo, mat);
-    letterMesh.updateMatrixWorld();
-
-    let finalMesh = letterMesh;
-
-    // 2. Skær hullet ud med ægte 3D CSG subtraction (Fjerner den faste stang)
-    if (holeDiam > 0) {
-      const holeLength = charWidth + 20;
-      const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
-      holeGeo.rotateZ(Math.PI / 2);
-
-      const holeMesh = new THREE.Mesh(holeGeo, mat);
-      holeMesh.position.set(0, holePosY, 0);
-      holeMesh.updateMatrixWorld();
-
-      try {
-        const textCSG = THREE.CSG.fromMesh(letterMesh);
-        const holeCSG = THREE.CSG.fromMesh(holeMesh);
-        const resultCSG = textCSG.subtract(holeCSG);
-
-        finalMesh = THREE.CSG.toMesh(resultCSG, new THREE.Matrix4(), mat);
-      } catch (e) {
-        console.warn("CSG udskæring fejlede for " + char, e);
-      }
-    }
-
-    finalMesh.position.x = currentX;
     currentX += spacing;
-
-    beadGroup.add(finalMesh);
   });
 
   const totalWidth = (letters.length - 1) * spacing;
