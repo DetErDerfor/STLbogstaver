@@ -90,15 +90,15 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .control-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       background: rgba(255, 255, 255, 0.02);
-      padding: 12px;
+      padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
@@ -115,7 +115,7 @@
 
     input[type="text"], select {
       width: 100%;
-      padding: 10px;
+      padding: 8px 10px;
       background: #0b0f19;
       border: 1px solid var(--panel-border);
       border-radius: 6px;
@@ -193,7 +193,7 @@
   <header>
     <div class="logo-title">
       <h1>3D Letter Bead Factory</h1>
-      <span>3D-Printbare Bogstavperler</span>
+      <span>Parametrisk Bogstavperle Generator</span>
     </div>
     <button class="btn btn-primary" id="exportBtn">📥 Export STL Fil</button>
   </header>
@@ -201,12 +201,12 @@
   <main>
     <sidebar>
       <div class="control-group">
-        <label for="textInput">Bogstav / Tekst</label>
-        <input type="text" id="textInput" value="T" maxlength="10">
+        <label for="textInput">Enkelt Bogstav</label>
+        <input type="text" id="textInput" value="T" maxlength="1">
       </div>
 
       <div class="control-group">
-        <label>Bogstav Højde <span class="val-badge" id="sizeVal">30 mm</span></label>
+        <label>Bogstav Højde (Y) <span class="val-badge" id="sizeVal">30 mm</span></label>
         <div class="slider-container">
           <input type="range" id="sizeSlider" min="15" max="60" value="30">
         </div>
@@ -220,9 +220,23 @@
       </div>
 
       <div class="control-group">
+        <label>Hjørne-afrunding (Bevel) <span class="val-badge" id="bevelVal">1.2 mm</span></label>
+        <div class="slider-container">
+          <input type="range" id="bevelSlider" min="0" max="3" step="0.2" value="1.2">
+        </div>
+      </div>
+
+      <div class="control-group">
         <label>Snørehul Diameter <span class="val-badge" id="holeVal">3.5 mm</span></label>
         <div class="slider-container">
           <input type="range" id="holeSlider" min="1" max="8" step="0.5" value="3.5">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Hul Placering (Højde) <span class="val-badge" id="holePosYVal">0 mm</span></label>
+        <div class="slider-container">
+          <input type="range" id="holePosYSlider" min="-15" max="15" step="0.5" value="0">
         </div>
       </div>
 
@@ -240,8 +254,8 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Antal Bogstaver: <span id="letterCountInfo">1</span></div>
-        <div>Perle Højde: <span id="heightInfo">30 mm</span></div>
+        <div>Aktivt Bogstav: <span id="activeCharInfo">T</span></div>
+        <div>Dimensioner: <span id="dimInfo">30 mm</span></div>
       </div>
     </div>
   </main>
@@ -254,7 +268,7 @@
     scene.background = new THREE.Color(0xf3f4f6);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, -50, 70);
+    camera.position.set(0, -45, 65);
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -264,105 +278,94 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
     dirLight.position.set(30, -30, 60);
     scene.add(dirLight);
 
-    let beadGroup = null;
+    let activeMeshGroup = null;
     let loadedFont = null;
 
     const loader = new THREE.FontLoader();
     loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
       loadedFont = font;
-      generateLetterBeads();
+      generateSingleLetterBead();
     });
 
-    function generateLetterBeads() {
+    function generateSingleLetterBead() {
       if (!loadedFont) return;
 
-      const rawText = document.getElementById('textInput').value.trim() || 'T';
-      const letters = rawText.toUpperCase().split('');
+      const char = (document.getElementById('textInput').value.trim() || 'T').toUpperCase().charAt(0);
       const size = parseFloat(document.getElementById('sizeSlider').value);
       const depth = parseFloat(document.getElementById('depthSlider').value);
+      const bevel = parseFloat(document.getElementById('bevelSlider').value);
       const holeDiam = parseFloat(document.getElementById('holeSlider').value);
+      const holePosY = parseFloat(document.getElementById('holePosYSlider').value);
       const colorHex = parseInt(document.getElementById('colorSelect').value);
 
       document.getElementById('sizeVal').innerText = size + ' mm';
       document.getElementById('depthVal').innerText = depth + ' mm';
+      document.getElementById('bevelVal').innerText = bevel + ' mm';
       document.getElementById('holeVal').innerText = holeDiam + ' mm';
-      document.getElementById('letterCountInfo').innerText = letters.length;
-      document.getElementById('heightInfo').innerText = size + ' mm';
+      document.getElementById('holePosYVal').innerText = holePosY + ' mm';
+      document.getElementById('activeCharInfo').innerText = char;
 
-      if (beadGroup) scene.remove(beadGroup);
-      beadGroup = new THREE.Group();
+      if (activeMeshGroup) scene.remove(activeMeshGroup);
+      activeMeshGroup = new THREE.Group();
 
       const mat = new THREE.MeshStandardMaterial({
         color: colorHex,
         roughness: 0.3,
-        metalness: 0.1,
-        side: THREE.DoubleSide
+        metalness: 0.1
       });
 
-      let currentX = 0;
-      const spacing = size * 1.1;
-
-      letters.forEach((char) => {
-        // Hent 2D konturer for bogstavet fra fonten
-        const shapes = loadedFont.generateShapes(char, size);
-
-        // Bunden for hver figur
-        shapes.forEach((shape) => {
-          // Tilføj hul direkte i 2D konturen midt på bogstavet
-          if (holeDiam > 0) {
-            const holePath = new THREE.Path();
-            const radius = holeDiam / 2;
-            
-            // Placer hullet midt i bogstavet (vandret gennem Z-aksen eller Y/X)
-            // Vi tegner en cirkulær udskæring i 2D før ekstrudering
-            holePath.absarc(size * 0.3, size * 0.4, radius, 0, Math.PI * 2, true);
-            shape.holes.push(holePath);
-          }
-
-          // Ekstruder geometrien direkte med hullet integreret
-          const extrudeSettings = {
-            depth: depth,
-            bevelEnabled: true,
-            bevelThickness: 1.0,
-            bevelSize: 0.8,
-            bevelSegments: 4
-          };
-
-          const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-          geo.computeBoundingBox();
-          const bbox = geo.boundingBox;
-          const charWidth = bbox.max.x - bbox.min.x;
-          const charHeight = bbox.max.y - bbox.min.y;
-
-          // Centrer geometrien
-          geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-
-          const mesh = new THREE.Mesh(geo, mat);
-          mesh.position.x = currentX;
-          beadGroup.add(mesh);
-        });
-
-        currentX += spacing;
+      // 1. Opret 3D bogstav geometri
+      const textGeo = new THREE.TextGeometry(char, {
+        font: loadedFont,
+        size: size,
+        height: depth,
+        curveSegments: 16,
+        bevelEnabled: bevel > 0,
+        bevelThickness: bevel,
+        bevelSize: bevel * 0.8,
+        bevelSegments: 5
       });
 
-      // Centrer samlet række af bogstaver
-      const totalWidth = (letters.length - 1) * spacing;
-      beadGroup.position.x = -totalWidth / 2;
+      textGeo.computeBoundingBox();
+      const bbox = textGeo.boundingBox;
+      const charWidth = bbox.max.x - bbox.min.x;
+      const charHeight = bbox.max.y - bbox.min.y;
 
-      scene.add(beadGroup);
+      document.getElementById('dimInfo').innerText = `${Math.round(charWidth)} x ${Math.round(charHeight)} x ${depth} mm`;
+
+      // Centrer bogstavet nøjagtigt ved (0,0,0)
+      textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+
+      const letterMesh = new THREE.Mesh(textGeo, mat);
+
+      // 2. Opret det tværgående snørehul på tværs af X/Z-aksen (igennem kroppen)
+      const holeLength = charWidth + 20;
+      const innerHoleGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
+      
+      // Drej cylinderen så den går vandret igennem siden
+      innerHoleGeo.rotateZ(Math.PI / 2);
+      
+      const holeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+      const holeMesh = new THREE.Mesh(innerHoleGeo, holeMat);
+      holeMesh.position.set(0, holePosY, 0);
+
+      activeMeshGroup.add(letterMesh);
+      activeMeshGroup.add(holeMesh);
+
+      scene.add(activeMeshGroup);
     }
 
     // Event Listeners
-    const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'colorSelect'];
+    const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'bevelSlider', 'holeSlider', 'holePosYSlider', 'colorSelect'];
     inputs.forEach(id => {
-      document.getElementById(id).addEventListener('input', generateLetterBeads);
+      document.getElementById(id).addEventListener('input', generateSingleLetterBead);
     });
 
     window.addEventListener('resize', () => {
@@ -373,14 +376,15 @@
 
     // STL Export
     document.getElementById('exportBtn').addEventListener('click', () => {
-      if (!beadGroup) return;
+      if (!activeMeshGroup) return;
 
       const exporter = new THREE.STLExporter();
-      const result = exporter.parse(beadGroup, { binary: true });
+      const result = exporter.parse(activeMeshGroup, { binary: true });
 
       const blob = new Blob([result], { type: 'application/octet-stream' });
       const link = document.createElement('a');
-      const filename = (document.getElementById('textInput').value.trim() || 'letter_bead') + '_3d.stl';
+      const char = (document.getElementById('textInput').value.trim() || 'bead').toUpperCase();
+      const filename = `letter_bead_${char}.stl`;
 
       link.href = URL.createObjectURL(blob);
       link.download = filename;
