@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Bogstaver</title>
+  <title>3D Letter Bead Factory</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Three.js & Exporters -->
+  <!-- Three.js Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
-  
-  <!-- Indlejret CSG Engine til 100% korrekte 3D-huller -->
-  <script src="https://cdn.jsdelivr.net/gh/manthrax/THREE-CSG-Utils@master/ThreeCSG.js"></script>
+
+  <!-- Manifold3D (Engine til fejlfrie 3D-booleans) -->
+  <script src="https://cdn.jsdelivr.net/npm/manifold-3d@2.4.2/manifold.js"></script>
 </head>
 <body>
 
@@ -47,13 +46,6 @@
       </div>
 
       <div class="control-group">
-        <label>Hjørne-afrunding (Bevel) <span class="val-badge" id="bevelVal">1.2 mm</span></label>
-        <div class="slider-container">
-          <input type="range" id="bevelSlider" min="0" max="3" step="0.2" value="1.2">
-        </div>
-      </div>
-
-      <div class="control-group">
         <label>Snørehul Diameter <span class="val-badge" id="holeVal">3.5 mm</span></label>
         <div class="slider-container">
           <input type="range" id="holeSlider" min="1" max="8" step="0.5" value="3.5">
@@ -82,7 +74,7 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Status: <span id="statusInfo">Klar</span></div>
+        <div>Status: <span id="statusInfo">Indlæser CAD Engine...</span></div>
         <div>Antal Perler: <span id="letterCountInfo">4</span></div>
       </div>
     </div>
