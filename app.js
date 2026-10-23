@@ -3,10 +3,10 @@ const container = document.getElementById('viewport-container');
 const canvas = document.getElementById('canvas3d');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf3f4f6);
+scene.background = new THREE.Color(0xf1f5f9);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.set(0, -50, 80);
+camera.position.set(0, -50, 85);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -15,10 +15,10 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
 dirLight.position.set(30, -30, 60);
 scene.add(dirLight);
 
@@ -58,55 +58,56 @@ function generateLetterBeads() {
 
   const mat = new THREE.MeshStandardMaterial({
     color: colorHex,
-    roughness: 0.3,
-    metalness: 0.1
-  });
-
-  const holeMat = new THREE.MeshBasicMaterial({
-    color: 0x111827
+    roughness: 0.35,
+    metalness: 0.05
   });
 
   let currentX = 0;
   const spacing = size * 1.25;
 
   letters.forEach((char) => {
-    const charGroup = new THREE.Group();
+    // 1. Hent 2D konturer for bogstavet
+    const shapes = loadedFont.generateShapes(char, size);
 
-    // 1. Opret Grundgeometri for Bogstavet
-    const textGeo = new THREE.TextGeometry(char, {
-      font: loadedFont,
-      size: size,
-      height: depth,
-      curveSegments: 10,
-      bevelEnabled: bevel > 0,
-      bevelThickness: bevel,
-      bevelSize: bevel * 0.8,
-      bevelSegments: 4
+    shapes.forEach((shape) => {
+      // 2. Opret ægte indbygget hul i 2D-skabelonen
+      if (holeDiam > 0) {
+        const holeRadius = holeDiam / 2;
+        const holePath = new THREE.Path();
+        
+        // Placer hullet på tværs
+        const centerX = size * 0.3;
+        const centerY = size * 0.35 + holePosY;
+
+        holePath.absarc(centerX, centerY, holeRadius, 0, Math.PI * 2, true);
+        shape.holes.push(holePath);
+      }
+
+      // 3. Ekstruder bogstavet direkte i 3D med hullet indbygget
+      const extrudeSettings = {
+        depth: depth,
+        curveSegments: 12,
+        bevelEnabled: bevel > 0,
+        bevelThickness: bevel,
+        bevelSize: bevel * 0.8,
+        bevelSegments: 4
+      };
+
+      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      geo.computeBoundingBox();
+      const bbox = geo.boundingBox;
+      const charWidth = bbox.max.x - bbox.min.x;
+      const charHeight = bbox.max.y - bbox.min.y;
+
+      // Centrer geometrien
+      geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.x = currentX;
+      beadGroup.add(mesh);
     });
 
-    textGeo.computeBoundingBox();
-    const bbox = textGeo.boundingBox;
-    const charWidth = bbox.max.x - bbox.min.x;
-    const charHeight = bbox.max.y - bbox.min.y;
-
-    textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-    const letterMesh = new THREE.Mesh(textGeo, mat);
-    charGroup.add(letterMesh);
-
-    // 2. Opret Snørehul
-    if (holeDiam > 0) {
-      const holeLength = charWidth + 10;
-      const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
-      holeGeo.rotateZ(Math.PI / 2);
-
-      const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-      holeMesh.position.set(0, holePosY, 0);
-      charGroup.add(holeMesh);
-    }
-
-    charGroup.position.x = currentX;
     currentX += spacing;
-    beadGroup.add(charGroup);
   });
 
   const totalWidth = (letters.length - 1) * spacing;
