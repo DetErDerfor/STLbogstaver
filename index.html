@@ -40,12 +40,6 @@
       justify-content: space-between;
     }
 
-    .logo-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
     .logo-title h1 {
       font-size: 1.25rem;
       font-weight: 700;
@@ -59,13 +53,8 @@
       color: var(--text-muted);
     }
 
-    .header-actions {
-      display: flex;
-      gap: 12px;
-    }
-
     .btn {
-      padding: 8px 16px;
+      padding: 10px 20px;
       border-radius: 6px;
       border: none;
       font-weight: 600;
@@ -87,15 +76,6 @@
       transform: translateY(-1px);
     }
 
-    .btn-secondary {
-      background: #1f293d;
-      color: var(--text-main);
-    }
-
-    .btn-secondary:hover {
-      background: #374151;
-    }
-
     main {
       display: flex;
       flex: 1;
@@ -110,7 +90,7 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
     .control-group {
@@ -163,7 +143,7 @@
       font-size: 0.8rem;
       color: var(--accent-blue);
       font-weight: bold;
-      min-width: 40px;
+      min-width: 45px;
       text-align: right;
     }
 
@@ -199,8 +179,13 @@
       font-weight: bold;
     }
   </style>
+
+  <!-- Three.js Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
 </head>
 <body>
 
@@ -209,25 +194,14 @@
       <h1>Letter Bead Factory 3D</h1>
       <span>Parametrisk 3D-Print Generator</span>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-primary" id="exportBtn"> Export STL Fil</button>
-    </div>
+    <button class="btn btn-primary" id="exportBtn">📥 Export STL Fil</button>
   </header>
 
   <main>
     <sidebar>
       <div class="control-group">
         <label for="textInput">Tekst / Bogstav</label>
-        <input type="text" id="textInput" value="THEA" maxlength="8">
-      </div>
-
-      <div class="control-group">
-        <label for="fontSelect">Skrifttype Style</label>
-        <select id="fontSelect">
-          <option value="sans-serif">Sans-Serif (Standard)</option>
-          <option value="serif">Serif (Klassisk)</option>
-          <option value="monospace">Monospace (Blok/Kode)</option>
-        </select>
+        <input type="text" id="textInput" value="F" maxlength="8">
       </div>
 
       <div class="control-group">
@@ -255,6 +229,13 @@
         <label>Hjørne-afrunding <span class="val-badge" id="radiusVal">5 mm</span></label>
         <div class="slider-container">
           <input type="range" id="radiusSlider" min="0" max="15" value="5">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Tekst Størrelse <span class="val-badge" id="textSizeVal">16 mm</span></label>
+        <div class="slider-container">
+          <input type="range" id="textSizeSlider" min="8" max="40" value="16">
         </div>
       </div>
 
@@ -292,7 +273,6 @@
   </main>
 
   <script>
-    // --- THREE.JS SYSTEM SETUP ---
     const container = document.getElementById('viewport-container');
     const canvas = document.getElementById('canvas3d');
 
@@ -310,65 +290,37 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // Belysning
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
     dirLight.position.set(40, -40, 80);
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // Grid Floor
     const gridHelper = new THREE.GridHelper(200, 40, 0x1f293d, 0x111827);
     gridHelper.rotation.x = Math.PI / 2;
     scene.add(gridHelper);
 
-    let beadMesh = null;
+    let beadMeshGroup = null;
+    let loadedFont = null;
 
-    // --- CANVAS VECTOR FONT EXTRACTOR ---
-    function createTextShape(text, fontStyle) {
-      const canvas2d = document.createElement('canvas');
-      const ctx = canvas2d.getContext('2d');
-      const size = 256;
-      canvas2d.width = size;
-      canvas2d.height = size;
+    // Load Helvetiker font directly from reliable CDN
+    const loader = new THREE.FontLoader();
+    loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+      loadedFont = font;
+      generateBeadGeometry();
+    });
 
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, size, size);
-
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = `bold 120px ${fontStyle}`;
-      ctx.fillText(text, size / 2, size / 2);
-
-      const imgData = ctx.getImageData(0, 0, size, size);
-      const data = imgData.data;
-
-      // Opretter en ren boksshape baseret på teksten
-      const shape = new THREE.Shape();
-      const scale = 0.15;
-      const w = 12 * text.length;
-      const h = 16;
-
-      shape.moveTo(-w/2, -h/2);
-      shape.lineTo(w/2, -h/2);
-      shape.lineTo(w/2, h/2);
-      shape.lineTo(-w/2, h/2);
-      shape.closePath();
-
-      return shape;
-    }
-
-    // --- GEOMETRI GENERATION ---
     function generateBeadGeometry() {
+      if (!loadedFont) return;
+
       const text = document.getElementById('textInput').value || 'A';
-      const fontStyle = document.getElementById('fontSelect').value;
       const width = parseFloat(document.getElementById('widthSlider').value);
       const height = parseFloat(document.getElementById('heightSlider').value);
       const depth = parseFloat(document.getElementById('depthSlider').value);
       const radius = Math.min(parseFloat(document.getElementById('radiusSlider').value), width/2 - 1, height/2 - 1);
+      const textSize = parseFloat(document.getElementById('textSizeSlider').value);
       const holeDiam = parseFloat(document.getElementById('holeSlider').value);
       const holeOrient = document.getElementById('holeOrient').value;
       const mode = document.getElementById('embossMode').value;
@@ -378,15 +330,16 @@
       document.getElementById('heightVal').innerText = height + ' mm';
       document.getElementById('depthVal').innerText = depth + ' mm';
       document.getElementById('radiusVal').innerText = radius + ' mm';
+      document.getElementById('textSizeVal').innerText = textSize + ' mm';
       document.getElementById('holeVal').innerText = holeDiam + ' mm';
       document.getElementById('swapHeightInfo').innerText = depth.toFixed(1) + ' mm';
       document.getElementById('dimInfo').innerText = `${width} x ${height} x ${depth} mm`;
 
-      if (beadMesh) scene.remove(beadMesh);
+      if (beadMeshGroup) scene.remove(beadMeshGroup);
 
-      const group = new THREE.Group();
+      beadMeshGroup = new THREE.Group();
 
-      // Base Body Shape
+      // Base Body Shape (Rounded Rectangle)
       const shape = new THREE.Shape();
       const x = -width / 2;
       const y = -height / 2;
@@ -402,65 +355,85 @@
       shape.lineTo(x, y + r);
       shape.quadraticCurveTo(x, y, x + r, y);
 
-      const extrudeSettings = { depth: depth, bevelEnabled: false };
-      const baseGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      const baseGeo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
       const baseMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 });
       const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-      group.add(baseMesh);
+      beadMeshGroup.add(baseMesh);
 
-      // Text Layer
-      const textShape = createTextShape(text, fontStyle);
-      const textExtrudeSettings = { depth: mode === 'emboss' ? 1.5 : 0.2, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.2, bevelSegments: 3 };
-      const textGeo = new THREE.ExtrudeGeometry(textShape, textExtrudeSettings);
-      const textMat = new THREE.MeshStandardMaterial({ color: mode === 'emboss' ? 0xffffff : 0x111827, roughness: 0.2 });
+      // 3D Text Geometry
+      const textGeo = new THREE.TextGeometry(text, {
+        font: loadedFont,
+        size: textSize,
+        height: mode === 'emboss' ? 1.5 : 0.4,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.2,
+        bevelSize: 0.2,
+        bevelSegments: 3
+      });
+
+      textGeo.computeBoundingBox();
+      const textWidth = textGeo.boundingBox.max.x - textGeo.boundingBox.min.x;
+      const textHeight = textGeo.boundingBox.max.y - textGeo.boundingBox.min.y;
+
+      const textMat = new THREE.MeshStandardMaterial({ 
+        color: mode === 'emboss' ? 0xffffff : 0x111827, 
+        roughness: 0.2 
+      });
       const textMesh = new THREE.Mesh(textGeo, textMat);
 
-      if (mode === 'emboss') {
-        textMesh.position.z = depth;
-      } else {
-        textMesh.position.z = depth - 0.1;
-      }
-      group.add(textMesh);
+      // Center text on top of bead
+      textMesh.position.x = -textWidth / 2;
+      textMesh.position.y = -textHeight / 2;
+      textMesh.position.z = mode === 'emboss' ? depth : depth - 0.2;
 
-      // Snørehul Visualisering
+      beadMeshGroup.add(textMesh);
+
+      // Hole Indicator
       if (holeDiam > 0) {
         const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, (holeOrient === 'X' ? width : height) + 4, 32);
         const holeMat = new THREE.MeshBasicMaterial({ color: 0x05070d });
         const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-        
+
         if (holeOrient === 'X') {
           holeMesh.rotation.z = Math.PI / 2;
         } else {
           holeMesh.rotation.x = Math.PI / 2;
         }
         holeMesh.position.set(0, 0, depth / 2);
-        group.add(holeMesh);
+        beadMeshGroup.add(holeMesh);
       }
 
-      beadMesh = group;
-      scene.add(beadMesh);
+      scene.add(beadMeshGroup);
     }
 
-    // --- EVENT LISTENERS ---
-    const inputs = ['textInput', 'fontSelect', 'widthSlider', 'heightSlider', 'depthSlider', 'radiusSlider', 'holeSlider', 'holeOrient', 'embossMode'];
+    // Event Listeners
+    const inputs = ['textInput', 'widthSlider', 'heightSlider', 'depthSlider', 'radiusSlider', 'textSizeSlider', 'holeSlider', 'holeOrient', 'embossMode'];
     inputs.forEach(id => {
       document.getElementById(id).addEventListener('input', generateBeadGeometry);
     });
 
-    // Handle Resize
     window.addEventListener('resize', () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // --- STL EXPORT ---
+    // STL Export Functionality
     document.getElementById('exportBtn').addEventListener('click', () => {
-      alert('Genererer din STL-fil for ' + (document.getElementById('textInput').value || 'Bead') + '...');
-    });
+      if (!beadMeshGroup) return;
 
-    // Initial render
-    generateBeadGeometry();
+      const exporter = new THREE.STLExporter();
+      const result = exporter.parse(beadMeshGroup, { binary: true });
+      
+      const blob = new Blob([result], { type: 'application/octet-stream' });
+      const link = document.createElement('a');
+      const filename = (document.getElementById('textInput').value || 'bead') + '_3d.stl';
+      
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    });
 
     function animate() {
       requestAnimationFrame(animate);
