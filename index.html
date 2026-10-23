@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Letter Bead Factory 3D Generator</title>
+  <title>Letter Bead Factory 3D - Direct Letter Beads</title>
   <style>
     :root {
       --bg-dark: #0b0f19;
@@ -180,7 +180,7 @@
     }
   </style>
 
-  <!-- Three.js Libraries -->
+  <!-- Three.js & Exporters -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
@@ -191,8 +191,8 @@
 
   <header>
     <div class="logo-title">
-      <h1>Letter Bead Factory 3D</h1>
-      <span>Parametrisk 3D-Print Generator</span>
+      <h1>3D Letter Bead Factory</h1>
+      <span>3D-Printbare Bogstavperler</span>
     </div>
     <button class="btn btn-primary" id="exportBtn">📥 Export STL Fil</button>
   </header>
@@ -200,65 +200,47 @@
   <main>
     <sidebar>
       <div class="control-group">
-        <label for="textInput">Tekst / Bogstav</label>
-        <input type="text" id="textInput" value="F" maxlength="8">
+        <label for="textInput">Bogstav / Tekst</label>
+        <input type="text" id="textInput" value="T" maxlength="10">
       </div>
 
       <div class="control-group">
-        <label>Bredde (X) <span class="val-badge" id="widthVal">35 mm</span></label>
+        <label>Bogstav Højde <span class="val-badge" id="sizeVal">30 mm</span></label>
         <div class="slider-container">
-          <input type="range" id="widthSlider" min="15" max="80" value="35">
+          <input type="range" id="sizeSlider" min="15" max="60" value="30">
         </div>
       </div>
 
       <div class="control-group">
-        <label>Højde (Y) <span class="val-badge" id="heightVal">35 mm</span></label>
+        <label>Dybde / Tykkelse (Z) <span class="val-badge" id="depthVal">10 mm</span></label>
         <div class="slider-container">
-          <input type="range" id="heightSlider" min="15" max="80" value="35">
+          <input type="range" id="depthSlider" min="4" max="25" value="10">
         </div>
       </div>
 
       <div class="control-group">
-        <label>Tykkelse / Dybde (Z) <span class="val-badge" id="depthVal">12 mm</span></label>
+        <label>Snørehul Diameter <span class="val-badge" id="holeVal">3.5 mm</span></label>
         <div class="slider-container">
-          <input type="range" id="depthSlider" min="4" max="30" value="12">
-        </div>
-      </div>
-
-      <div class="control-group">
-        <label>Hjørne-afrunding <span class="val-badge" id="radiusVal">5 mm</span></label>
-        <div class="slider-container">
-          <input type="range" id="radiusSlider" min="0" max="15" value="5">
-        </div>
-      </div>
-
-      <div class="control-group">
-        <label>Tekst Størrelse <span class="val-badge" id="textSizeVal">16 mm</span></label>
-        <div class="slider-container">
-          <input type="range" id="textSizeSlider" min="8" max="40" value="16">
-        </div>
-      </div>
-
-      <div class="control-group">
-        <label>Snørehul Diameter <span class="val-badge" id="holeVal">4.5 mm</span></label>
-        <div class="slider-container">
-          <input type="range" id="holeSlider" min="0" max="10" step="0.5" value="4.5">
+          <input type="range" id="holeSlider" min="1" max="8" step="0.5" value="3.5">
         </div>
       </div>
 
       <div class="control-group">
         <label for="holeOrient">Snørehul Retning</label>
         <select id="holeOrient">
-          <option value="X">X-Akse (Vandret)</option>
-          <option value="Y">Y-Akse (Lodret)</option>
+          <option value="X">X-Akse (Vandret igennem)</option>
+          <option value="Y">Y-Akse (Lodret igennem)</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="embossMode">Prægningstype</label>
-        <select id="embossMode">
-          <option value="emboss">Embossed (Forhøjet tekst)</option>
-          <option value="engrave">Engraved (Forsænket tekst)</option>
+        <label for="colorSelect">Visningsfarve</label>
+        <select id="colorSelect">
+          <option value="0x8b5cf6">Lilla (Standard)</option>
+          <option value="0x3b82f6">Blå</option>
+          <option value="0x10b981">Grøn</option>
+          <option value="0xef4444">Rød</option>
+          <option value="0xf59e0b">Orange</option>
         </select>
       </div>
     </sidebar>
@@ -266,8 +248,8 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Filament-Skift Højde: <span id="swapHeightInfo">12.0 mm</span></div>
-        <div>Dimensioner: <span id="dimInfo">35 x 35 x 12 mm</span></div>
+        <div>Antal Bogstaver: <span id="letterCountInfo">1</span></div>
+        <div>Perle Højde: <span id="heightInfo">30 mm</span></div>
       </div>
     </div>
   </main>
@@ -277,10 +259,10 @@
     const canvas = document.getElementById('canvas3d');
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x05070d);
+    scene.background = new THREE.Color(0xf3f4f6); // Lys baggrund som på eksemplet
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, -60, 60);
+    camera.position.set(0, -50, 70);
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -290,127 +272,114 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Lyssætning tilpasset blød 3D-visning
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.position.set(40, -40, 80);
-    dirLight.castShadow = true;
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(30, -30, 60);
     scene.add(dirLight);
 
-    const gridHelper = new THREE.GridHelper(200, 40, 0x1f293d, 0x111827);
-    gridHelper.rotation.x = Math.PI / 2;
-    scene.add(gridHelper);
-
-    let beadMeshGroup = null;
+    let beadGroup = null;
     let loadedFont = null;
 
-    // Load Helvetiker font directly from reliable CDN
+    // Henter afrundet 3D font
     const loader = new THREE.FontLoader();
     loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
       loadedFont = font;
-      generateBeadGeometry();
+      generateLetterBeads();
     });
 
-    function generateBeadGeometry() {
+    function generateLetterBeads() {
       if (!loadedFont) return;
 
-      const text = document.getElementById('textInput').value || 'A';
-      const width = parseFloat(document.getElementById('widthSlider').value);
-      const height = parseFloat(document.getElementById('heightSlider').value);
+      const rawText = document.getElementById('textInput').value.trim() || 'T';
+      const letters = rawText.toUpperCase().split('');
+      const size = parseFloat(document.getElementById('sizeSlider').value);
       const depth = parseFloat(document.getElementById('depthSlider').value);
-      const radius = Math.min(parseFloat(document.getElementById('radiusSlider').value), width/2 - 1, height/2 - 1);
-      const textSize = parseFloat(document.getElementById('textSizeSlider').value);
       const holeDiam = parseFloat(document.getElementById('holeSlider').value);
       const holeOrient = document.getElementById('holeOrient').value;
-      const mode = document.getElementById('embossMode').value;
+      const colorHex = parseInt(document.getElementById('colorSelect').value);
 
-      // Update UI Labels
-      document.getElementById('widthVal').innerText = width + ' mm';
-      document.getElementById('heightVal').innerText = height + ' mm';
+      // Opdater UI labels
+      document.getElementById('sizeVal').innerText = size + ' mm';
       document.getElementById('depthVal').innerText = depth + ' mm';
-      document.getElementById('radiusVal').innerText = radius + ' mm';
-      document.getElementById('textSizeVal').innerText = textSize + ' mm';
       document.getElementById('holeVal').innerText = holeDiam + ' mm';
-      document.getElementById('swapHeightInfo').innerText = depth.toFixed(1) + ' mm';
-      document.getElementById('dimInfo').innerText = `${width} x ${height} x ${depth} mm`;
+      document.getElementById('letterCountInfo').innerText = letters.length;
+      document.getElementById('heightInfo').innerText = size + ' mm';
 
-      if (beadMeshGroup) scene.remove(beadMeshGroup);
+      if (beadGroup) scene.remove(beadGroup);
+      beadGroup = new THREE.Group();
 
-      beadMeshGroup = new THREE.Group();
-
-      // Base Body Shape (Rounded Rectangle)
-      const shape = new THREE.Shape();
-      const x = -width / 2;
-      const y = -height / 2;
-      const r = radius;
-
-      shape.moveTo(x + r, y);
-      shape.lineTo(x + width - r, y);
-      shape.quadraticCurveTo(x + width, y, x + width, y + r);
-      shape.lineTo(x + width, y + height - r);
-      shape.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-      shape.lineTo(x + r, y + height);
-      shape.quadraticCurveTo(x, y + height, x, y + height - r);
-      shape.lineTo(x, y + r);
-      shape.quadraticCurveTo(x, y, x + r, y);
-
-      const baseGeo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
-      const baseMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.3 });
-      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-      beadMeshGroup.add(baseMesh);
-
-      // 3D Text Geometry
-      const textGeo = new THREE.TextGeometry(text, {
-        font: loadedFont,
-        size: textSize,
-        height: mode === 'emboss' ? 1.5 : 0.4,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0.2,
-        bevelSize: 0.2,
-        bevelSegments: 3
+      const mat = new THREE.MeshStandardMaterial({
+        color: colorHex,
+        roughness: 0.3,
+        metalness: 0.1
       });
 
-      textGeo.computeBoundingBox();
-      const textWidth = textGeo.boundingBox.max.x - textGeo.boundingBox.min.x;
-      const textHeight = textGeo.boundingBox.max.y - textGeo.boundingBox.min.y;
+      let currentX = 0;
+      const spacing = size * 1.1;
 
-      const textMat = new THREE.MeshStandardMaterial({ 
-        color: mode === 'emboss' ? 0xffffff : 0x111827, 
-        roughness: 0.2 
-      });
-      const textMesh = new THREE.Mesh(textGeo, textMat);
+      letters.forEach((char, index) => {
+        const charGroup = new THREE.Group();
 
-      // Center text on top of bead
-      textMesh.position.x = -textWidth / 2;
-      textMesh.position.y = -textHeight / 2;
-      textMesh.position.z = mode === 'emboss' ? depth : depth - 0.2;
+        // Generer bogstav-geometri
+        const textGeo = new THREE.TextGeometry(char, {
+          font: loadedFont,
+          size: size,
+          height: depth,
+          curveSegments: 16,
+          bevelEnabled: true,
+          bevelThickness: 1.2,
+          bevelSize: 1.0,
+          bevelOffset: 0,
+          bevelSegments: 5
+        });
 
-      beadMeshGroup.add(textMesh);
+        textGeo.computeBoundingBox();
+        const bbox = textGeo.boundingBox;
+        const charWidth = bbox.max.x - bbox.min.x;
+        const charHeight = bbox.max.y - bbox.min.y;
 
-      // Hole Indicator
-      if (holeDiam > 0) {
-        const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, (holeOrient === 'X' ? width : height) + 4, 32);
-        const holeMat = new THREE.MeshBasicMaterial({ color: 0x05070d });
-        const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+        const textMesh = new THREE.Mesh(textGeo, mat);
+        // Centrer bogstavet
+        textMesh.position.set(-charWidth / 2, -charHeight / 2, 0);
+        charGroup.add(textMesh);
 
-        if (holeOrient === 'X') {
-          holeMesh.rotation.z = Math.PI / 2;
-        } else {
-          holeMesh.rotation.x = Math.PI / 2;
+        // Opret snørehul gennem bogstavet
+        if (holeDiam > 0) {
+          const holeLen = Math.max(charWidth, charHeight, size) + 10;
+          const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLen, 32);
+          const holeMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+          const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+
+          if (holeOrient === 'X') {
+            holeMesh.rotation.z = Math.PI / 2;
+          } else {
+            holeMesh.rotation.x = Math.PI / 2;
+          }
+          holeMesh.position.set(0, 0, depth / 2);
+          charGroup.add(holeMesh);
         }
-        holeMesh.position.set(0, 0, depth / 2);
-        beadMeshGroup.add(holeMesh);
-      }
 
-      scene.add(beadMeshGroup);
+        // Placér bogstaver ved siden af hinanden hvis flere
+        charGroup.position.x = currentX;
+        currentX += spacing;
+
+        beadGroup.add(charGroup);
+      });
+
+      // Centrer hele gruppen i viewport
+      const totalWidth = (letters.length - 1) * spacing;
+      beadGroup.position.x = -totalWidth / 2;
+
+      scene.add(beadGroup);
     }
 
     // Event Listeners
-    const inputs = ['textInput', 'widthSlider', 'heightSlider', 'depthSlider', 'radiusSlider', 'textSizeSlider', 'holeSlider', 'holeOrient', 'embossMode'];
+    const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'holeOrient', 'colorSelect'];
     inputs.forEach(id => {
-      document.getElementById(id).addEventListener('input', generateBeadGeometry);
+      document.getElementById(id).addEventListener('input', generateLetterBeads);
     });
 
     window.addEventListener('resize', () => {
@@ -419,17 +388,17 @@
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // STL Export Functionality
+    // STL Export
     document.getElementById('exportBtn').addEventListener('click', () => {
-      if (!beadMeshGroup) return;
+      if (!beadGroup) return;
 
       const exporter = new THREE.STLExporter();
-      const result = exporter.parse(beadMeshGroup, { binary: true });
-      
+      const result = exporter.parse(beadGroup, { binary: true });
+
       const blob = new Blob([result], { type: 'application/octet-stream' });
       const link = document.createElement('a');
-      const filename = (document.getElementById('textInput').value || 'bead') + '_3d.stl';
-      
+      const filename = (document.getElementById('textInput').value.trim() || 'letter_bead') + '_3d.stl';
+
       link.href = URL.createObjectURL(blob);
       link.download = filename;
       link.click();
