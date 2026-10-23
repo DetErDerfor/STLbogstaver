@@ -181,12 +181,13 @@
     }
   </style>
 
-  <!-- Three.js & Exporters -->
+  <!-- Three.js, CSG Engine & Exporters -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three-csg-ts@3.1.11/single/index.min.js"></script>
 </head>
 <body>
 
@@ -201,8 +202,8 @@
   <main>
     <sidebar>
       <div class="control-group">
-        <label for="textInput">Enkelt Bogstav</label>
-        <input type="text" id="textInput" value="T" maxlength="1">
+        <label for="textInput">Bogstav(er) / Tekst</label>
+        <input type="text" id="textInput" value="THEA" maxlength="12">
       </div>
 
       <div class="control-group">
@@ -254,8 +255,8 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Aktivt Bogstav: <span id="activeCharInfo">T</span></div>
-        <div>Dimensioner: <span id="dimInfo">30 mm</span></div>
+        <div>Antal Perler: <span id="letterCountInfo">4</span></div>
+        <div>Højde: <span id="heightInfo">30 mm</span></div>
       </div>
     </div>
   </main>
@@ -268,12 +269,11 @@
     scene.background = new THREE.Color(0xf3f4f6);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, -45, 65);
+    camera.position.set(0, -50, 80);
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -285,19 +285,20 @@
     dirLight.position.set(30, -30, 60);
     scene.add(dirLight);
 
-    let activeMeshGroup = null;
+    let beadGroup = null;
     let loadedFont = null;
 
     const loader = new THREE.FontLoader();
     loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
       loadedFont = font;
-      generateSingleLetterBead();
+      generateLetterBeads();
     });
 
-    function generateSingleLetterBead() {
+    function generateLetterBeads() {
       if (!loadedFont) return;
 
-      const char = (document.getElementById('textInput').value.trim() || 'T').toUpperCase().charAt(0);
+      const rawText = document.getElementById('textInput').value.trim() || 'T';
+      const letters = rawText.toUpperCase().split('');
       const size = parseFloat(document.getElementById('sizeSlider').value);
       const depth = parseFloat(document.getElementById('depthSlider').value);
       const bevel = parseFloat(document.getElementById('bevelSlider').value);
@@ -310,10 +311,11 @@
       document.getElementById('bevelVal').innerText = bevel + ' mm';
       document.getElementById('holeVal').innerText = holeDiam + ' mm';
       document.getElementById('holePosYVal').innerText = holePosY + ' mm';
-      document.getElementById('activeCharInfo').innerText = char;
+      document.getElementById('letterCountInfo').innerText = letters.length;
+      document.getElementById('heightInfo').innerText = size + ' mm';
 
-      if (activeMeshGroup) scene.remove(activeMeshGroup);
-      activeMeshGroup = new THREE.Group();
+      if (beadGroup) scene.remove(beadGroup);
+      beadGroup = new THREE.Group();
 
       const mat = new THREE.MeshStandardMaterial({
         color: colorHex,
@@ -321,51 +323,72 @@
         metalness: 0.1
       });
 
-      // 1. Opret 3D bogstav geometri
-      const textGeo = new THREE.TextGeometry(char, {
-        font: loadedFont,
-        size: size,
-        height: depth,
-        curveSegments: 16,
-        bevelEnabled: bevel > 0,
-        bevelThickness: bevel,
-        bevelSize: bevel * 0.8,
-        bevelSegments: 5
+      let currentX = 0;
+      const spacing = size * 1.25;
+
+      letters.forEach((char) => {
+        // 1. Opret Grundgeometri for Bogstavet
+        const textGeo = new THREE.TextGeometry(char, {
+          font: loadedFont,
+          size: size,
+          height: depth,
+          curveSegments: 12,
+          bevelEnabled: bevel > 0,
+          bevelThickness: bevel,
+          bevelSize: bevel * 0.8,
+          bevelSegments: 4
+        });
+
+        textGeo.computeBoundingBox();
+        const bbox = textGeo.boundingBox;
+        const charWidth = bbox.max.x - bbox.min.x;
+        const charHeight = bbox.max.y - bbox.min.y;
+
+        // Centrer bogstavet
+        textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+        const letterMesh = new THREE.Mesh(textGeo, mat);
+        letterMesh.updateMatrixWorld();
+
+        let finalMesh = letterMesh;
+
+        // 2. Skær hullet ud med ægte booleansk subtration (CSG)
+        if (holeDiam > 0) {
+          const holeLength = charWidth + 20;
+          const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
+          
+          // Drej cylinderen vandret på tværs
+          holeGeo.rotateZ(Math.PI / 2);
+          
+          const holeMesh = new THREE.Mesh(holeGeo, mat);
+          holeMesh.position.set(0, holePosY, 0);
+          holeMesh.updateMatrixWorld();
+
+          try {
+            // Udfør den fysiske udskæring
+            finalMesh = CSG.subtract(letterMesh, holeMesh);
+            finalMesh.material = mat;
+          } catch (e) {
+            console.warn('CSG udskæring fejlede for bogstav: ' + char, e);
+          }
+        }
+
+        finalMesh.position.x = currentX;
+        currentX += spacing;
+
+        beadGroup.add(finalMesh);
       });
 
-      textGeo.computeBoundingBox();
-      const bbox = textGeo.boundingBox;
-      const charWidth = bbox.max.x - bbox.min.x;
-      const charHeight = bbox.max.y - bbox.min.y;
+      // Centrer hele rækken af bogstaver i billedet
+      const totalWidth = (letters.length - 1) * spacing;
+      beadGroup.position.x = -totalWidth / 2;
 
-      document.getElementById('dimInfo').innerText = `${Math.round(charWidth)} x ${Math.round(charHeight)} x ${depth} mm`;
-
-      // Centrer bogstavet nøjagtigt ved (0,0,0)
-      textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-
-      const letterMesh = new THREE.Mesh(textGeo, mat);
-
-      // 2. Opret det tværgående snørehul på tværs af X/Z-aksen (igennem kroppen)
-      const holeLength = charWidth + 20;
-      const innerHoleGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
-      
-      // Drej cylinderen så den går vandret igennem siden
-      innerHoleGeo.rotateZ(Math.PI / 2);
-      
-      const holeMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
-      const holeMesh = new THREE.Mesh(innerHoleGeo, holeMat);
-      holeMesh.position.set(0, holePosY, 0);
-
-      activeMeshGroup.add(letterMesh);
-      activeMeshGroup.add(holeMesh);
-
-      scene.add(activeMeshGroup);
+      scene.add(beadGroup);
     }
 
     // Event Listeners
     const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'bevelSlider', 'holeSlider', 'holePosYSlider', 'colorSelect'];
     inputs.forEach(id => {
-      document.getElementById(id).addEventListener('input', generateSingleLetterBead);
+      document.getElementById(id).addEventListener('input', generateLetterBeads);
     });
 
     window.addEventListener('resize', () => {
@@ -376,15 +399,14 @@
 
     // STL Export
     document.getElementById('exportBtn').addEventListener('click', () => {
-      if (!activeMeshGroup) return;
+      if (!beadGroup) return;
 
       const exporter = new THREE.STLExporter();
-      const result = exporter.parse(activeMeshGroup, { binary: true });
+      const result = exporter.parse(beadGroup, { binary: true });
 
       const blob = new Blob([result], { type: 'application/octet-stream' });
       const link = document.createElement('a');
-      const char = (document.getElementById('textInput').value.trim() || 'bead').toUpperCase();
-      const filename = `letter_bead_${char}.stl`;
+      const filename = (document.getElementById('textInput').value.trim() || 'beads') + '_3d.stl';
 
       link.href = URL.createObjectURL(blob);
       link.download = filename;
