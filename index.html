@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letter Bead Factory 3D</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Three.js & Essential Ecosystem Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+    
+    <!-- ThreeCSG Library for Real-time Boolean Cuts/Engraving -->
+    <script src="https://cdn.jsdelivr.net/npm/three-csg-ts@3.1.11/browser/index.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        /* Glassmorphism panel styling */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom styled scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-full flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between z-30 flex-shrink-0 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <i class="fa-solid fa-cube text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                    Letter Bead Factory 3D
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">Parametric 3D Printable Bead & Keyring Generator</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <button id="open-github-modal" class="text-xs font-semibold bg-slate-800 hover:bg-slate-700/80 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-sm">
+                <i class="fa-brands fa-github text-sm text-indigo-400"></i>
+                <span class="hidden sm:inline">GitHub Pages Guide</span>
+            </button>
+            <button id="export-stl-btn" class="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 hover:from-indigo-600 hover:to-purple-600 text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition transform active:scale-95 border border-indigo-400/30">
+                <i class="fa-solid fa-download"></i>
+                <span>Export STL File</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace View -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- Left Control Sidebar -->
+        <aside class="w-full lg:w-96 border-r border-slate-800/80 bg-slate-900/60 overflow-y-auto p-5 space-y-5 flex-shrink-0 z-20 max-h-full">
+            
+            <!-- 1. Text & Typography Settings -->
+            <section class="glass-panel rounded-2xl p-4 space-y-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-font"></i> Text & Font Configuration
+                    </span>
+                    <span class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded-full font-mono">3D Mesh</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Character / Text</label>
+                    <input type="text" id="input-text" value="A" maxlength="4" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-white font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none tracking-widest uppercase transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Font Style</label>
+                    <select id="input-font" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="helvetiker">Helvetiker Bold</option>
+                        <option value="optimer">Optimer Bold</option>
+                        <option value="gentilis">Gentilis Regular</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Font Size Scale</span>
+                        <span id="val-font-size" class="text-indigo-400 font-mono font-semibold">18</span>
+                    </div>
+                    <input type="range" id="input-font-size" min="8" max="32" step="1" value="18" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <!-- 2. Bead Dimensions -->
+            <section class="glass-panel rounded-2xl p-4 space-y-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-ruler-combined"></i> Bead Dimensions
+                    </span>
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">mm</span>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Width (X)</span>
+                        <span id="val-width" class="text-indigo-400 font-mono font-semibold">30 mm</span>
+                    </div>
+                    <input type="range" id="input-width" min="15" max="60" step="1" value="30" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Height (Y)</span>
+                        <span id="val-height" class="text-indigo-400 font-mono font-semibold">30 mm</span>
+                    </div>
+                    <input type="range" id="input-height" min="15" max="60" step="1" value="30" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Thickness / Depth (Z)</span>
+                        <span id="val-depth" class="text-indigo-400 font-mono font-semibold">10 mm</span>
+                    </div>
+                    <input type="range" id="input-depth" min="5" max="25" step="1" value="10" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Corner Fillet Radius</span>
+                        <span id="val-radius" class="text-indigo-400 font-mono font-semibold">4 mm</span>
+                    </div>
+                    <input type="range" id="input-radius" min="0" max="10" step="0.5" value="4" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <!-- 3. Cord / Tunnel Hole -->
+            <section class="glass-panel rounded-2xl p-4 space-y-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-circle-dot"></i> Lanyard / Cord Tunnel
+                    </span>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Hole Diameter</span>
+                        <span id="val-hole-size" class="text-indigo-400 font-mono font-semibold">4.5 mm</span>
+                    </div>
+                    <input type="range" id="input-hole-size" min="1" max="10" step="0.5" value="4.5" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Hole Tunnel Orientation</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="btn-hole-x" class="py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-arrows-left-right text-[10px]"></i> Horizontal (X)
+                        </button>
+                        <button type="button" id="btn-hole-y" class="py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-arrows-up-down text-[10px]"></i> Vertical (Y)
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Emboss / Engrave Feature Mode -->
+            <section class="glass-panel rounded-2xl p-4 space-y-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group"></i> Feature Mode & Depth
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="btn-mode-emboss" class="py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-cube text-[10px]"></i> Embossed (Raised)
+                    </button>
+                    <button type="button" id="btn-mode-engrave" class="py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-stamp text-[10px]"></i> Engraved (Cut)
+                    </button>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-slate-300">Letter Height / Cut Depth</span>
+                        <span id="val-emboss-depth" class="text-indigo-400 font-mono font-semibold">1.5 mm</span>
+                    </div>
+                    <input type="range" id="input-emboss-depth" min="0.5" max="5" step="0.2" value="1.5" class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </section>
+
+            <!-- 5. Materials & Color Preview -->
+            <section class="glass-panel rounded-2xl p-4 space-y-3.5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-palette"></i> Filament Preview
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Bead Body</label>
+                        <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-1.5">
+                            <input type="color" id="color-bead" value="#3b82f6" class="w-8 h-8 bg-transparent rounded-lg cursor-pointer border-0">
+                            <span id="hex-bead" class="text-[11px] font-mono text-slate-400">#3B82F6</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Letter Accent</label>
+                        <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-1.5">
+                            <input type="color" id="color-text" value="#ffffff" class="w-8 h-8 bg-transparent rounded-lg cursor-pointer border-0">
+                            <span id="hex-text" class="text-[11px] font-mono text-slate-400">#FFFFFF</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Dual Color 3D Print Tip Box -->
+            <section class="bg-indigo-950/40 border border-indigo-800/40 rounded-2xl p-4 text-xs space-y-2">
+                <div class="flex items-center gap-2 text-indigo-300 font-bold">
+                    <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                    <span>Dual-Color Filament Swap Tip</span>
+                </div>
+                <p id="print-tip-text" class="text-slate-300 leading-relaxed text-[11px]">
+                    To print in two colors without a multi-material system, slice at <span class="text-indigo-200 font-mono font-semibold">0.2mm layer height</span> and add a filament pause/color swap command (M600) at exactly <strong id="tip-pause-height" class="text-indigo-300 font-mono">10.0 mm</strong> height!
+                </p>
+            </section>
+
+        </aside>
+
+        <!-- Right 3D Viewport Area -->
+        <section class="flex-1 bg-slate-950 relative overflow-hidden flex flex-col">
+            
+            <!-- Canvas Mount -->
+            <div id="canvas-container" class="w-full h-full relative cursor-grab active:cursor-grabbing">
+                
+                <!-- Loading Overlay Spinner -->
+                <div id="loading-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+                    <div class="relative flex items-center justify-center mb-3">
+                        <div class="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                        <i class="fa-solid fa-cube text-indigo-400 text-sm absolute"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-300 tracking-wider">Rendering Geometry...</span>
+                </div>
+
+                <!-- Navigation Controls Overlay HUD -->
+                <div class="absolute bottom-5 left-5 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-4 py-2.5 rounded-2xl text-xs text-slate-300 pointer-events-none hidden sm:flex items-center space-x-4 shadow-xl z-10">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-mouse-pointer text-indigo-400"></i> Left-Drag: Rotate</span>
+                    <span class="text-slate-700">|</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-arrows-up-down-left-right text-indigo-400"></i> Right-Drag: Pan</span>
+                    <span class="text-slate-700">|</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-magnifying-glass-plus text-indigo-400"></i> Scroll: Zoom</span>
+                </div>
+
+                <!-- Live Dimension Badge overlay -->
+                <div class="absolute top-5 left-5 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-xl text-xs text-slate-300 pointer-events-none z-10 shadow-lg flex items-center gap-2">
+                    <i class="fa-solid fa-vector-square text-indigo-400"></i>
+                    <span id="hud-dimensions" class="font-mono text-slate-200">30 x 30 x 10 mm</span>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- GitHub Setup Modal -->
+    <div id="github-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-5 max-h-[90vh] overflow-y-auto">
+            
+            <button id="close-github-modal" class="absolute top-5 right-5 text-slate-400 hover:text-white transition w-8 h-8 rounded-xl bg-slate-800/80 flex items-center justify-center">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 text-indigo-400">
+                <i class="fa-brands fa-github text-3xl"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white leading-snug">Host on GitHub Pages (Free)</h3>
+                    <p class="text-xs text-slate-400">Host your custom 3D Bead Generator online in under 2 minutes.</p>
+                </div>
+            </div>
+
+            <p class="text-slate-300 text-xs leading-relaxed">
+                This application is entirely self-contained in a single HTML file. You can deploy it to GitHub Pages for free without compiling or using complex tools:
+            </p>
+
+            <div class="space-y-3 text-xs text-slate-300">
+                <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex gap-3">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold font-mono flex-shrink-0">1</span>
+                    <div>
+                        <strong class="text-slate-100">Create a New GitHub Repository:</strong>
+                        <p class="text-slate-400 mt-0.5">Go to <a href="https://github.com/new" target="_blank" class="text-indigo-400 hover:underline">github.com/new</a> and create a public repository (e.g. named <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">letter-bead-factory</code>).</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex gap-3">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold font-mono flex-shrink-0">2</span>
+                    <div>
+                        <strong class="text-slate-100">Upload HTML File:</strong>
+                        <p class="text-slate-400 mt-0.5">Save this webpage file as <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">index.html</code> on your computer and upload it to the root of your new repository.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex gap-3">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold font-mono flex-shrink-0">3</span>
+                    <div>
+                        <strong class="text-slate-100">Enable GitHub Pages:</strong>
+                        <p class="text-slate-400 mt-0.5">Navigate to <strong>Settings</strong> &rarr; <strong>Pages</strong> in your repository. Under <em>Build and deployment</em>, set Source to <strong>Deploy from a branch</strong> and select <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">main</code>.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 flex gap-3">
+                    <span class="w-6 h-6 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold font-mono flex-shrink-0">4</span>
+                    <div>
+                        <strong class="text-slate-100">Enjoy your Live 3D Web App:</strong>
+                        <p class="text-slate-400 mt-0.5">GitHub will publish your app at <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">https://&lt;username&gt;.github.io/letter-bead-factory/</code> within 60 seconds.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button id="modal-got-it" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition">
+                    Got it, thanks!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Logic Script -->
+    <script>
+        // State Management
+        const state = {
+            text: "A",
+            fontName: "helvetiker",
+            fontSize: 18,
+            width: 30,
+            height: 30,
+            depth: 10,
+            radius: 4,
+            holeSize: 4.5,
+            holeOrientation: "X", // "X" or "Y"
+            mode: "embossed",     // "embossed" or "engraved"
+            embossDepth: 1.5,
+            beadColor: "#3b82f6",
+            textColor: "#ffffff"
+        };
+
+        // Three.js Runtime variables
+        let scene, camera, renderer, controls;
+        let fontCache = {};
+        const beadGroup = new THREE.Group();
+
+        // UI References
+        const canvasContainer = document.getElementById('canvas-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // Font JSON Locations
+        const FONT_URLS = {
+            'helvetiker': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_bold.typeface.json',
+            'optimer': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/optimer_bold.typeface.json',
+            'gentilis': 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/gentilis_regular.typeface.json'
+        };
+
+        // Initialize 3D Scene
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(35, 45, 55);
+
+            // WebGL Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 200;
+            controls.minDistance = 10;
+
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            mainLight.position.set(40, 60, 40);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            mainLight.shadow.bias = -0.0001;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x818cf8, 0.4);
+            fillLight.position.set(-40, -20, -30);
+            scene.add(fillLight);
+
+            // Floor Grid Helper & Shadow Plane
+            const gridHelper = new THREE.GridHelper(120, 24, 0x334155, 0x1e293b);
+            gridHelper.position.y = -20;
+            scene.add(gridHelper);
+
+            const shadowPlaneGeo = new THREE.PlaneGeometry(120, 120);
+            const shadowPlaneMat = new THREE.ShadowMaterial({ opacity: 0.4 });
+            const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
+            shadowPlane.rotation.x = -Math.PI / 2;
+            shadowPlane.position.y = -20;
+            shadowPlane.receiveShadow = true;
+            scene.add(shadowPlane);
+
+            scene.add(beadGroup);
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        }
+
+        // Helper: Create rounded rectangle shape for ExtrudeGeometry
+        function createRoundedRectShape(width, height, radius) {
+            const shape = new THREE.Shape();
+            const x = -width / 2;
+            const y = -height / 2;
+            const r = Math.min(radius, width / 2, height / 2);
+
+            shape.moveTo(x + r, y);
+            shape.lineTo(x + width - r, y);
+            shape.quadraticCurveTo(x + width, y, x + width, y + r);
+            shape.lineTo(x + width, y + height - r);
+            shape.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+            shape.lineTo(x + r, y + height);
+            shape.quadraticCurveTo(x, y + height, x, y + height - r);
+            shape.lineTo(x, y + r);
+            shape.quadraticCurveTo(x, y, x + r, y);
+
+            return shape;
+        }
+
+        // Asynchronous Font Loader with Cache
+        function loadFont(fontName) {
+            return new Promise((resolve, reject) => {
+                if (fontCache[fontName]) {
+                    resolve(fontCache[fontName]);
+                    return;
+                }
+                const loader = new THREE.FontLoader();
+                loader.load(
+                    FONT_URLS[fontName],
+                    (font) => {
+                        fontCache[fontName] = font;
+                        resolve(font);
+                    },
+                    undefined,
+                    (err) => reject(err)
+                );
+            });
+        }
+
+        // Rebuild 3D Parametric Geometry
+        async function rebuildGeometry() {
+            loadingOverlay.style.opacity = "1";
+            loadingOverlay.style.pointerEvents = "auto";
+
+            try {
+                const font = await loadFont(state.fontName);
+
+                // Clean existing meshes
+                while (beadGroup.children.length > 0) {
+                    const obj = beadGroup.children[0];
+                    if (obj.geometry) obj.geometry.dispose();
+                    beadGroup.remove(obj);
+                }
+
+                // 1. Create Rounded Box Geometry
+                const shape = createRoundedRectShape(state.width, state.height, state.radius);
+                const extrudeSettings = {
+                    depth: state.depth,
+                    bevelEnabled: true,
+                    bevelSegments: 4,
+                    steps: 1,
+                    bevelSize: 0.8,
+                    bevelThickness: 0.8
+                };
+                
+                const baseGeom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                baseGeom.center(); // Center around origin
+
+                // 2. Create String / Cord Hole
+                const holeLength = Math.max(state.width, state.height) + 20;
+                const holeGeom = new THREE.CylinderGeometry(state.holeSize / 2, state.holeSize / 2, holeLength, 32);
+                
+                if (state.holeOrientation === "X") {
+                    holeGeom.rotateZ(Math.PI / 2);
+                } else {
+                    holeGeom.rotateX(Math.PI / 2);
+                }
+
+                // Materials
+                const bodyMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(state.beadColor),
+                    roughness: 0.35,
+                    metalness: 0.1
+                });
+
+                const textMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(state.textColor),
+                    roughness: 0.25,
+                    metalness: 0.1
+                });
+
+                const baseMesh = new THREE.Mesh(baseGeom, bodyMaterial);
+                const holeMesh = new THREE.Mesh(holeGeom, bodyMaterial);
+
+                // Subtraction CSG for string tunnel
+                let beadCSG = CSG.subtract(baseMesh, holeMesh);
+
+                // 3. Text Extrusion Geometry
+                const textStr = state.text.trim() === "" ? "?" : state.text;
+                const textGeom = new THREE.TextGeometry(textStr, {
+                    font: font,
+                    size: state.fontSize,
+                    height: state.embossDepth,
+                    curveSegments: 12,
+                    bevelEnabled: true,
+                    bevelThickness: 0.2,
+                    bevelSize: 0.2,
+                    bevelOffset: 0,
+                    bevelSegments: 3
+                });
+
+                textGeom.computeBoundingBox();
+                const centerOffset = -0.5 * (textGeom.boundingBox.max.x - textGeom.boundingBox.min.x);
+                const centerYOffset = -0.5 * (textGeom.boundingBox.max.y - textGeom.boundingBox.min.y);
+                textGeom.translate(centerOffset, centerYOffset, 0);
+
+                if (state.mode === "embossed") {
+                    // Raised Text
+                    const textMesh = new THREE.Mesh(textGeom, textMaterial);
+                    textMesh.position.z = (state.depth / 2) + 0.5;
+                    textMesh.castShadow = true;
+
+                    beadCSG.castShadow = true;
+                    beadCSG.receiveShadow = true;
+
+                    beadGroup.add(beadCSG);
+                    beadGroup.add(textMesh);
+                } else {
+                    // Engraved Cutout Mode
+                    const textMesh = new THREE.Mesh(textGeom, bodyMaterial);
+                    textMesh.position.z = (state.depth / 2) - state.embossDepth + 0.1;
+                    
+                    const finalCSG = CSG.subtract(beadCSG, textMesh);
+                    finalCSG.castShadow = true;
+                    finalCSG.receiveShadow = true;
+                    beadGroup.add(finalCSG);
+                }
+
+                // Update HUD badges
+                document.getElementById('hud-dimensions').textContent = `${state.width} x ${state.height} x ${state.depth} mm`;
+                document.getElementById('tip-pause-height').textContent = `${(state.depth / 2 + 0.5).toFixed(1)} mm`;
+
+            } catch (err) {
+                console.error("3D Mesh Generation Error:", err);
+            } finally {
+                loadingOverlay.style.opacity = "0";
+                loadingOverlay.style.pointerEvents = "none";
+            }
+        }
+
+        // Export STL Binary File
+        function exportSTL() {
+            const exporter = new THREE.STLExporter();
+            const result = exporter.parse(beadGroup, { binary: true });
+
+            const blob = new Blob([result], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            
+            const sanitizedText = state.text.replace(/[^a-zA-Z0-9]/g, '_') || 'Bead';
+            link.download = `Bead_${sanitizedText}_${state.width}x${state.height}mm.stl`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        // Event Listener Bindings
+        function setupUIListeners() {
+            const updateState = (key, val, textElemId, unit = '') => {
+                state[key] = val;
+                if (textElemId) {
+                    document.getElementById(textElemId).textContent = `${val}${unit}`;
+                }
+                rebuildGeometry();
+            };
+
+            // Text Character
+            document.getElementById('input-text').addEventListener('input', (e) => {
+                state.text = e.target.value;
+                rebuildGeometry();
+            });
+
+            // Font Select
+            document.getElementById('input-font').addEventListener('change', (e) => {
+                state.fontName = e.target.value;
+                rebuildGeometry();
+            });
+
+            // Font Size
+            document.getElementById('input-font-size').addEventListener('input', (e) => {
+                updateState('fontSize', parseFloat(e.target.value), 'val-font-size');
+            });
+
+            // Dimensions
+            document.getElementById('input-width').addEventListener('input', (e) => {
+                updateState('width', parseFloat(e.target.value), 'val-width', ' mm');
+            });
+            document.getElementById('input-height').addEventListener('input', (e) => {
+                updateState('height', parseFloat(e.target.value), 'val-height', ' mm');
+            });
+            document.getElementById('input-depth').addEventListener('input', (e) => {
+                updateState('depth', parseFloat(e.target.value), 'val-depth', ' mm');
+            });
+            document.getElementById('input-radius').addEventListener('input', (e) => {
+                updateState('radius', parseFloat(e.target.value), 'val-radius', ' mm');
+            });
+
+            // Hole Size
+            document.getElementById('input-hole-size').addEventListener('input', (e) => {
+                updateState('holeSize', parseFloat(e.target.value), 'val-hole-size', ' mm');
+            });
+
+            // Hole Orientation Toggle
+            const btnHoleX = document.getElementById('btn-hole-x');
+            const btnHoleY = document.getElementById('btn-hole-y');
+
+            btnHoleX.addEventListener('click', () => {
+                state.holeOrientation = 'X';
+                btnHoleX.className = "py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm";
+                btnHoleY.className = "py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5";
+                rebuildGeometry();
+            });
+
+            btnHoleY.addEventListener('click', () => {
+                state.holeOrientation = 'Y';
+                btnHoleY.className = "py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm";
+                btnHoleX.className = "py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5";
+                rebuildGeometry();
+            });
+
+            // Feature Mode Toggle (Emboss vs Engrave)
+            const btnModeEmboss = document.getElementById('btn-mode-emboss');
+            const btnModeEngrave = document.getElementById('btn-mode-engrave');
+
+            btnModeEmboss.addEventListener('click', () => {
+                state.mode = 'embossed';
+                btnModeEmboss.className = "py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm";
+                btnModeEngrave.className = "py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5";
+                rebuildGeometry();
+            });
+
+            btnModeEngrave.addEventListener('click', () => {
+                state.mode = 'engraved';
+                btnModeEngrave.className = "py-2 text-xs font-semibold rounded-xl border border-indigo-500/80 bg-indigo-600/20 text-indigo-300 transition flex items-center justify-center gap-1.5 shadow-sm";
+                btnModeEmboss.className = "py-2 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 transition flex items-center justify-center gap-1.5";
+                rebuildGeometry();
+            });
+
+            // Emboss Depth
+            document.getElementById('input-emboss-depth').addEventListener('input', (e) => {
+                updateState('embossDepth', parseFloat(e.target.value), 'val-emboss-depth', ' mm');
+            });
+
+            // Filament Color Inputs
+            document.getElementById('color-bead').addEventListener('input', (e) => {
+                state.beadColor = e.target.value;
+                document.getElementById('hex-bead').textContent = e.target.value.toUpperCase();
+                rebuildGeometry();
+            });
+
+            document.getElementById('color-text').addEventListener('input', (e) => {
+                state.textColor = e.target.value;
+                document.getElementById('hex-text').textContent = e.target.value.toUpperCase();
+                rebuildGeometry();
+            });
+
+            // Export STL
+            document.getElementById('export-stl-btn').addEventListener('click', exportSTL);
+
+            // GitHub Modal Dialog Controls
+            const modal = document.getElementById('github-modal');
+            const openModal = () => {
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.classList.add('opacity-100');
+            };
+            const closeModal = () => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                modal.classList.remove('opacity-100');
+            };
+
+            document.getElementById('open-github-modal').addEventListener('click', openModal);
+            document.getElementById('close-github-modal').addEventListener('click', closeModal);
+            document.getElementById('modal-got-it').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        // App Boot
+        window.onload = () => {
+            initThree();
+            setupUIListeners();
+            rebuildGeometry();
+        };
+    </script>
+</body>
+</html>
