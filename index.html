@@ -6,22 +6,19 @@
   <title>3D Letter Bead Factory</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Three.js & Manifold3D CDN -->
+  <!-- Three.js Libraries & Exporters -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
-  
-  <!-- Manifold 3D Engine -->
-  <script src="https://cdn.jsdelivr.net/npm/manifold-3d@2.4.2/manifold.js"></script>
 </head>
 <body>
 
   <header>
     <div class="logo-title">
       <h1>3D Letter Bead Factory</h1>
-      <span>Manifold3D Fejlfri Generator</span>
+      <span>Parametrisk Bogstavperle Generator</span>
     </div>
     <button class="btn btn-primary" id="exportBtn">📥 Export STL Fil</button>
   </header>
@@ -30,7 +27,7 @@
     <sidebar>
       <div class="control-group">
         <label for="textInput">Bogstav(er) / Tekst</label>
-        <input type="text" id="textInput" value="THEA" maxlength="12">
+        <input type="text" id="textInput" value="NAVN" maxlength="12">
       </div>
 
       <div class="control-group">
@@ -82,7 +79,7 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Status: <span id="statusInfo">Indlæser 3D Motor...</span></div>
+        <div>Status: <span id="statusInfo">Klar</span></div>
         <div>Antal Perler: <span id="letterCountInfo">4</span></div>
       </div>
     </div>
