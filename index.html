@@ -11,9 +11,10 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
 
-  <!-- Manifold3D (Engine til fejlfrie 3D-booleans) -->
-  <script src="https://cdn.jsdelivr.net/npm/manifold-3d@2.4.2/manifold.js"></script>
+  <!-- Manifold3D Wasm Engine -->
+  <script src="https://unpkg.com/manifold-3d@2.4.2/manifold.js"></script>
 </head>
 <body>
 
@@ -74,7 +75,7 @@
     <div id="viewport-container">
       <canvas id="canvas3d"></canvas>
       <div class="info-overlay">
-        <div>Status: <span id="statusInfo">Indlæser CAD Engine...</span></div>
+        <div>Status: <span id="statusInfo">Indlæser CSG Engine...</span></div>
         <div>Antal Perler: <span id="letterCountInfo">4</span></div>
       </div>
     </div>
