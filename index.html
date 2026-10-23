@@ -6,20 +6,23 @@
   <title>3D Letter Bead Factory</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Three.js Libraries & Exporters -->
+  <!-- Three.js & Exporters -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+  
+  <!-- Indlejret CSG Engine til 100% korrekte 3D-huller -->
+  <script src="https://cdn.jsdelivr.net/gh/manthrax/THREE-CSG-Utils@master/ThreeCSG.js"></script>
 </head>
 <body>
 
   <header>
     <div class="logo-title">
-      <h1>3D Letter Bead Factory</h1>
+      <h1>3D Letter Bead Factory 🌸</h1>
     </div>
-    <button class="btn btn-primary" id="exportBtn">📥 Export STL Fil</button>
+    <button class="btn btn-primary" id="exportBtn">✨ Export STL Fil</button>
   </header>
 
   <main>
@@ -67,11 +70,11 @@
       <div class="control-group">
         <label for="colorSelect">Visningsfarve</label>
         <select id="colorSelect">
-          <option value="0xc8b6ff">Pastellilla</option>
-          <option value="0xb8c0ff">Pastelblå</option>
-          <option value="0xb5e2fa">Lyseblå</option>
-          <option value="0xe7c6ff">Pastelrosa</option>
-          <option value="0xc1fba4">Pastelgrøn</option>
+          <option value="0xfbcfe8">Pastelrosa</option>
+          <option value="0xddd6fe">Pastellilla</option>
+          <option value="0xbae6fd">Pastelblå</option>
+          <option value="0xfef08a">Pastelgul</option>
+          <option value="0xbbf7d0">Pastelgrøn</option>
         </select>
       </div>
     </sidebar>
