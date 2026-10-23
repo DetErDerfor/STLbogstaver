@@ -143,7 +143,7 @@ input[type="range"] {
 #viewport-container {
   flex: 1;
   position: relative;
-  background: #fff9fb;
+  background: #a0c4ff;
 }
 
 #canvas3d {
