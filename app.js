@@ -3,7 +3,7 @@ const container = document.getElementById('viewport-container');
 const canvas = document.getElementById('canvas3d');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf1f5f9);
+scene.background = new THREE.Color(0xfff9fb);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(0, -50, 85);
@@ -25,7 +25,7 @@ scene.add(dirLight);
 let beadGroup = null;
 let loadedFont = null;
 
-// Indlæs standard font
+// Indlæs font
 const loader = new THREE.FontLoader();
 loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
   loadedFont = font;
@@ -45,7 +45,6 @@ function generateLetterBeads() {
   const holePosY = parseFloat(document.getElementById('holePosYSlider').value);
   const colorHex = parseInt(document.getElementById('colorSelect').value);
 
-  // Opdater UI-værdier
   document.getElementById('sizeVal').innerText = size + ' mm';
   document.getElementById('depthVal').innerText = depth + ' mm';
   document.getElementById('bevelVal').innerText = bevel + ' mm';
@@ -66,48 +65,54 @@ function generateLetterBeads() {
   const spacing = size * 1.25;
 
   letters.forEach((char) => {
-    // 1. Hent 2D konturer for bogstavet
-    const shapes = loadedFont.generateShapes(char, size);
-
-    shapes.forEach((shape) => {
-      // 2. Opret ægte indbygget hul i 2D-skabelonen
-      if (holeDiam > 0) {
-        const holeRadius = holeDiam / 2;
-        const holePath = new THREE.Path();
-        
-        // Placer hullet på tværs
-        const centerX = size * 0.3;
-        const centerY = size * 0.35 + holePosY;
-
-        holePath.absarc(centerX, centerY, holeRadius, 0, Math.PI * 2, true);
-        shape.holes.push(holePath);
-      }
-
-      // 3. Ekstruder bogstavet direkte i 3D med hullet indbygget
-      const extrudeSettings = {
-        depth: depth,
-        curveSegments: 12,
-        bevelEnabled: bevel > 0,
-        bevelThickness: bevel,
-        bevelSize: bevel * 0.8,
-        bevelSegments: 4
-      };
-
-      const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      geo.computeBoundingBox();
-      const bbox = geo.boundingBox;
-      const charWidth = bbox.max.x - bbox.min.x;
-      const charHeight = bbox.max.y - bbox.min.y;
-
-      // Centrer geometrien
-      geo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
-
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.x = currentX;
-      beadGroup.add(mesh);
+    // 1. Opret Grundgeometri for Bogstavet
+    const textGeo = new THREE.TextGeometry(char, {
+      font: loadedFont,
+      size: size,
+      height: depth,
+      curveSegments: 8,
+      bevelEnabled: bevel > 0,
+      bevelThickness: bevel,
+      bevelSize: bevel * 0.8,
+      bevelSegments: 3
     });
 
+    textGeo.computeBoundingBox();
+    const bbox = textGeo.boundingBox;
+    const charWidth = bbox.max.x - bbox.min.x;
+    const charHeight = bbox.max.y - bbox.min.y;
+
+    textGeo.translate(-charWidth / 2 - bbox.min.x, -charHeight / 2 - bbox.min.y, -depth / 2);
+    const letterMesh = new THREE.Mesh(textGeo, mat);
+    letterMesh.updateMatrixWorld();
+
+    let finalMesh = letterMesh;
+
+    // 2. Skær hullet ud med ægte 3D CSG subtraction (Fjerner den faste stang)
+    if (holeDiam > 0) {
+      const holeLength = charWidth + 20;
+      const holeGeo = new THREE.CylinderGeometry(holeDiam / 2, holeDiam / 2, holeLength, 32);
+      holeGeo.rotateZ(Math.PI / 2);
+
+      const holeMesh = new THREE.Mesh(holeGeo, mat);
+      holeMesh.position.set(0, holePosY, 0);
+      holeMesh.updateMatrixWorld();
+
+      try {
+        const textCSG = THREE.CSG.fromMesh(letterMesh);
+        const holeCSG = THREE.CSG.fromMesh(holeMesh);
+        const resultCSG = textCSG.subtract(holeCSG);
+
+        finalMesh = THREE.CSG.toMesh(resultCSG, new THREE.Matrix4(), mat);
+      } catch (e) {
+        console.warn("CSG udskæring fejlede for " + char, e);
+      }
+    }
+
+    finalMesh.position.x = currentX;
     currentX += spacing;
+
+    beadGroup.add(finalMesh);
   });
 
   const totalWidth = (letters.length - 1) * spacing;
@@ -137,7 +142,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 
   const blob = new Blob([result], { type: 'application/octet-stream' });
   const link = document.createElement('a');
-  const filename = (document.getElementById('textInput').value.trim() || 'NAVN') + '_3d.stl';
+  const filename = (document.getElementById('textInput').value.trim() || 'beads') + '_3d.stl';
 
   link.href = URL.createObjectURL(blob);
   link.download = filename;
