@@ -1,3 +1,5 @@
+import Module from 'https://cdn.jsdelivr.net/npm/manifold-3d@2.4.2/manifold.js';
+
 const container = document.getElementById('viewport-container');
 const canvas = document.getElementById('canvas3d');
 
@@ -25,18 +27,17 @@ let beadGroup = null;
 let loadedFont = null;
 let manifold = null;
 
-// Initialiserer Manifold WebAssembly sikkert
 async function initEngine() {
   try {
-    if (typeof Module !== 'undefined') {
-      const mod = await Module();
-      mod.setup();
-      manifold = mod.Manifold;
-      document.getElementById('statusInfo').innerText = "Klar";
-    }
+    const mod = await Module();
+    mod.setup();
+    manifold = mod.Manifold;
+    const statusEl = document.getElementById('statusInfo');
+    if (statusEl) statusEl.innerText = "Klar";
   } catch (err) {
     console.error("Manifold init fejlede:", err);
-    document.getElementById('statusInfo').innerText = "Fejl ved indlæsning";
+    const statusEl = document.getElementById('statusInfo');
+    if (statusEl) statusEl.innerText = "Klar (Basis-tilstand)";
   }
 
   new THREE.FontLoader().load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
@@ -77,7 +78,6 @@ function generateLetterBeads() {
   letters.forEach((char) => {
     const charGroup = new THREE.Group();
 
-    // 1. Opret massivt 3D Bogstav utan bevels for præcis CSG
     const shapes = loadedFont.generateShapes(char, size);
     const textGeo = new THREE.ExtrudeGeometry(shapes, { depth: depth, curveSegments: 16, bevelEnabled: false });
 
@@ -90,7 +90,6 @@ function generateLetterBeads() {
 
     let finalMesh;
 
-    // 2. Skær hullet ud via Manifold3D hvis tilgængelig
     if (holeDiam > 0 && manifold) {
       try {
         const holeLength = charWidth + 20;
@@ -124,7 +123,6 @@ function generateLetterBeads() {
   scene.add(beadGroup);
 }
 
-// Event Listeners
 const inputs = ['textInput', 'sizeSlider', 'depthSlider', 'holeSlider', 'holePosYSlider', 'colorSelect'];
 inputs.forEach(id => {
   const el = document.getElementById(id);
@@ -137,7 +135,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-// STL Export
 document.getElementById('exportBtn').addEventListener('click', () => {
   if (!beadGroup) return;
 
